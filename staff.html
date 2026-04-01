@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -159,7 +158,7 @@ function parseScannedCode(scannedText) {
 
 // ==================== 查詢會員 ====================
 async function fetchMemberInfo(userId) {
-    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}`;
+    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&t=${Date.now()}`;
     const res = await fetch(url);
     return await res.json();
 }
@@ -171,17 +170,16 @@ async function onScanSuccess(scannedText) {
     if (navigator.vibrate) navigator.vibrate(200);
     
     const parsed = parseScannedCode(scannedText);
-    console.log("解析結果:", parsed);
-
+    
+    if (parsed.type === "gift" || parsed.type === "invite") {
+        showModal(`<h3>🎁 新客招待/邀請碼</h3><p>請引導顧客完成註冊後再掃碼集點。</p>`);
+        return;
+    }
+    
     try {
-        showLoading("連線中...");
-        // 確保網址最後沒有多餘空格，並加入時間戳記防止快取
-        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
-        
-        const res = await fetch(finalUrl, { 
-            method: "GET",
-            mode: "cors" // 強制開啟跨網域模式
-        });
+        showLoading("查詢會員...");
+        const data = await fetchMemberInfo(parsed.userId);
+        hideLoading();
         
         if (data.success && data.member) {
             customerId = data.member.userId;
@@ -198,28 +196,21 @@ async function onScanSuccess(scannedText) {
             document.getElementById('totalSpend').focus();
             doCalc();
         } else {
-            showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
+            showModal("⚠️ 查無此會員編號！");
         }
     } catch (err) {
         hideLoading();
-        showModal("系統連線失敗：" + err.message);
+        showModal("查詢失敗：" + err.message);
     }
 }
 
 // ==================== 相機 ====================
 async function openCamera() {
     try {
-        // 如果已經有相機串流，先關閉
-        if (cameraStream) {
-            await closeCamera();
-        }
+        if (cameraStream) await closeCamera();
         
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
@@ -231,8 +222,7 @@ async function openCamera() {
             startScanning();
         };
     } catch (err) {
-        console.error("相機錯誤:", err);
-        showModal("無法開啟相機，請檢查權限設定\n\n" + err.message);
+        showModal("無法開啟相機，請檢查權限\n" + err.message);
         document.getElementById('hiddenIdInput').focus();
     }
 }
@@ -253,86 +243,48 @@ function startScanning() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, canvas.width, canvas.height, {
-            inversionAttempts: "attemptBoth"
-        });
+        const code = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: "attemptBoth" });
         
         if (code) {
-            // 掃描成功，立即停止掃描並處理
             clearInterval(scanInterval);
             scanInterval = null;
             statusText.innerText = "✅ 掃描成功！";
             statusText.style.background = "#00b900";
             onScanSuccess(code.data);
-        } else {
-            statusText.innerText = "🔍 對準 QR Code...";
-            statusText.style.background = "rgba(0,0,0,0.6)";
         }
     }, 150);
 }
 
 async function closeCamera() {
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
-    const video = document.getElementById('cameraPreview');
-    if (video) video.srcObject = null;
+    if (scanInterval) clearInterval(scanInterval);
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    document.getElementById('cameraPreview').srcObject = null;
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入 ====================
+// ==================== 登入（改用 URL 參數，不要用 prompt）====================
 function init() {
-    // 1. 先從瀏覽器記憶體 (LocalStorage) 抓看看有沒有存過資料
-    let savedName = localStorage.getItem('staff_name');
-    let savedBranch = localStorage.getItem('staff_branch');
-    let savedRole = localStorage.getItem('staff_role') || "夥伴";
-
-    // 2. 如果沒存過，才跳出視窗問一次
-    if (!savedName || !savedBranch) {
-        savedName = prompt("【初次設定】請輸入店員姓名：", "");
-        savedBranch = prompt("【初次設定】請輸入分店（1.河堤店 2.一點甜）：", "老娘鍋(河堤店)");
-        
-        if (savedName && savedBranch) {
-            // 存進瀏覽器，下次開網頁就不用再打了
-            localStorage.setItem('staff_name', savedName);
-            localStorage.setItem('staff_branch', savedBranch);
-            localStorage.setItem('staff_role', savedRole);
-        } else {
-            alert("必須輸入店員資訊才能使用系統！請刷新頁面重新設定。");
-            return;
-        }
-    }
-
-    // 3. 套用到全域變數 staff
-    staff = { 
-        name: savedName, 
-        branch: savedBranch, 
-        role: savedRole 
-    };
+    const url = new URL(window.location.href);
+    const name = url.searchParams.get('name');
+    const branch = url.searchParams.get('branch');
+    const role = url.searchParams.get('role');
     
-    // 4. 更新畫面 UI
-    document.getElementById('staff-name').innerText = staff.name;
-    document.getElementById('role-text').innerText = staff.role;
-    document.getElementById('shop-name').innerText = staff.branch;
-    
-    // 5. 隱藏載入畫面，聚焦掃碼槍輸入框
-    hideLoading();
-    document.getElementById('hiddenIdInput').focus();
-    setupScannerListener();
-    
-    console.log("✅ 店員身分已確認（來自記憶體）：", staff);
-}
-
-// 額外加一個「登出/切換帳號」的按鈕功能，以防萬一要換人
-function resetStaff() {
-    if(confirm("確定要清除店員設定並重新登入嗎？")) {
-        localStorage.clear();
-        location.reload();
+    if (name && branch) {
+        staff = { name, branch, role: role || "夥伴" };
+        document.getElementById('staff-name').innerText = staff.name;
+        document.getElementById('role-text').innerText = staff.role;
+        document.getElementById('shop-name').innerText = staff.branch;
+        hideLoading();
+        document.getElementById('hiddenIdInput').focus();
+        setupScannerListener();
+    } else {
+        // 如果 URL 沒參數，提示錯誤
+        hideLoading();
+        showModal("⚠️ 登入參數錯誤<br>請從登入頁面重新進入");
+        document.getElementById('staff-name').innerText = "未登入";
+        document.getElementById('role-text').innerText = "無權限";
+        document.getElementById('submitBtn').disabled = true;
     }
 }
 
@@ -384,18 +336,21 @@ function doCalc() {
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== 提交 ====================
+// ==================== 提交（完整版）====================
 async function submitData() {
     if (!staff.name || !staff.branch) { 
-        showModal("❌ 系統偵測不到店員資料，請重新設定。"); 
+        showModal("❌ 系統偵測不到店員資料，請重新登入"); 
         return; 
     }
-    if (!customerId) { showModal("請先掃描會員碼"); return; }
+    if (!customerId) { 
+        showModal("請先掃描會員碼"); 
+        return; 
+    }
     
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.innerText = "資料傳送中...";
-    showLoading("正在過卡中，請稍候...");
+    btn.innerText = "處理中...";
+    showLoading("結帳中...");
     
     const payload = {
         action: "addPoints",
@@ -403,27 +358,41 @@ async function submitData() {
         customerId: customerId,
         branch: staff.branch,
         staffName: staff.name,
-        // ... 其他欄位保持不變 ...
+        staffRole: staff.role,
+        totalSpend: Number(document.getElementById('totalSpend').value) || 0,
+        ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
+        redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
+        buyTicket: Number(document.getElementById('buyTicket').value) || 0,
+        earnRate: config.earnRate,
+        ticketRate: config.ticketRate,
+        refRate: config.refRate,
+        memberLevel: memberLevel,
+        memberLevelRate: 1
     };
     
+    console.log("發送 payload:", payload);
+    
     try {
-        // 使用 no-cors 雖然看不到回傳值但最容易成功，
-        // 但為了看到「✅成功」，我們改用傳統的 redirect 處理
         const res = await fetch(GAS_URL, {
             method: "POST",
-            mode: "no-cors", // 這裡改用 no-cors 是 GitHub Pages 提交到 GAS 最不卡的方法
-            headers: { "Content-Type": "text/plain" }, // GAS 接收 JSON 建議用 text/plain 避開 CORS 預檢
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-
-        // 因為 no-cors 無法讀取內容，我們假設 2 秒後成功並刷新
+        const result = await res.json();
         hideLoading();
-        showModal("✅ 資料已發送！<br>系統將於 2 秒後自動整理。");
-        setTimeout(() => { location.reload(); }, 2000);
-
+        
+        if (result === "SUCCESS" || result.success) {
+            showModal("✅ 結帳完成！");
+            setTimeout(() => {
+                closeModal();
+                location.reload();
+            }, 2000);
+        } else {
+            throw new Error(result.message || "伺服器錯誤");
+        }
     } catch (e) {
         hideLoading();
-        showModal("提交出錯：" + e.message + "<br>請檢查網路或聯繫管理員。");
+        showModal("提交失敗：" + e.message);
         btn.disabled = false;
         btn.innerText = "確認過卡";
     }
