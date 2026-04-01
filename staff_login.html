@@ -181,6 +181,23 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        /* 密碼顯示切換 */
+        .password-wrapper {
+            position: relative;
+        }
+        
+        .toggle-password {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+        }
     </style>
 </head>
 <body>
@@ -193,13 +210,19 @@
         
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="input-group">
-                <label>📱 店員帳號 (LINE User ID)</label>
-                <input type="text" id="userId" placeholder="請輸入 LINE User ID" required autocomplete="off">
+                <label>📱 登入帳號</label>
+                <input type="text" id="userId" placeholder="請輸入帳號（短碼/Token/LINE ID）" required autocomplete="off">
+                <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                    💡 支援三種帳號：自訂短碼 / Device Token / LINE User ID
+                </div>
             </div>
             
             <div class="input-group">
                 <label>🔑 登入密碼</label>
-                <input type="password" id="keyword" placeholder="請輸入密碼" required>
+                <div class="password-wrapper">
+                    <input type="password" id="keyword" placeholder="請輸入密碼" required>
+                    <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
+                </div>
             </div>
             
             <button type="submit" class="login-btn" id="loginBtn">登入系統</button>
@@ -209,11 +232,12 @@
         <div id="successMsg" class="success-message"></div>
         
         <div class="demo-hint">
-            <strong>💡 提示：</strong><br>
-            • 帳號為店員的 LINE User ID（B欄）<br>
-            • 密碼由管理員設定（E欄）<br>
-            • 帳號需為「啟用狀態」（J欄 = 是）<br>
-            • 忘記密碼請聯絡系統管理員
+            <strong>💡 登入方式說明：</strong><br>
+            • <strong>自訂短碼</strong>：如 xiaoming、信義店長（L欄）<br>
+            • <strong>Device Token</strong>：如 STAFF001、STAFF002（F欄）<br>
+            • <strong>LINE User ID</strong>：系統自動識別（B欄）<br>
+            • 密碼請向管理員索取（E欄）<br>
+            • 帳號需為「啟用狀態」（J欄 = 是）
         </div>
         
         <div class="footer-note">
@@ -224,6 +248,12 @@
     <script>
         // GAS 後端網址（請確認與 staff.html 一致）
         const GAS_URL = "https://script.google.com/macros/s/AKfycbxrlYGoxOuTUJ9y9YQreRRNpSYly2c7yGuOw0ppPmfJJL7xLo6RLZDBF2htCaHwnB6Y/exec";
+        
+        function togglePassword() {
+            const passwordInput = document.getElementById('keyword');
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+        }
         
         async function handleLogin(event) {
             event.preventDefault();
@@ -247,7 +277,7 @@
             
             try {
                 // 呼叫 GAS 驗證店員身分
-                // 後端會從「店員管理」工作表讀取 B欄(LINE_UserID) 和 E欄(登入密碼)
+                // 後端支援三種帳號：L欄自訂帳號 / F欄Device Token / B欄LINE User ID
                 const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}`;
                 const response = await fetch(verifyUrl);
                 const result = await response.json();
