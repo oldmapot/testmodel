@@ -35,19 +35,6 @@
         .camera-btn-close { background: #ff4444; color: white; }
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
-
-        /* 你要的「完美對齊」樣式 */
-        .rule-title {
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            font-weight: bold;
-            line-height: 1.6;
-        }
-        .rule-item {
-            margin: 0 0 6px 24px;
-            line-height: 1.6;
-            font-size: 15px;
-        }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -55,7 +42,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
+    <div class="loading-text" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
 </div>
 
 <div id="customModal">
@@ -178,8 +165,16 @@ async function fetchMemberInfo(userId) {
 
 // ==================== 掃描處理 ====================
 async function onScanSuccess(scannedText) {
-    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    // 先停止掃描
+    if (scanInterval) { 
+        clearInterval(scanInterval); 
+        scanInterval = null; 
+    }
+    
+    // 關閉相機
     await closeCamera();
+    
+    // 震動回饋
     if (navigator.vibrate) navigator.vibrate(200);
     
     const parsed = parseScannedCode(scannedText);
@@ -220,20 +215,30 @@ async function onScanSuccess(scannedText) {
 // ==================== 相機 ====================
 async function openCamera() {
     try {
+        // 如果已經有相機串流，先關閉
+        if (cameraStream) {
+            await closeCamera();
+        }
+        
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" }
+            video: {
+                facingMode: "environment",
+                width: { ideal: 1280 },
+                height: { ideal: 720 }
+            }
         });
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
         video.srcObject = stream;
-
-        video.onloadedmetadata = async () => {
-            await video.play();
+        
+        video.onloadedmetadata = () => {
+            video.play();
             document.getElementById('cameraContainer').style.display = 'flex';
             startScanning();
         };
     } catch (err) {
-        showModal("無法開啟相機，請使用掃碼槍\n" + err.message);
+        console.error("相機錯誤:", err);
+        showModal("無法開啟相機，請檢查權限設定\n\n" + err.message);
         document.getElementById('hiddenIdInput').focus();
     }
 }
@@ -254,24 +259,39 @@ function startScanning() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, canvas.width, canvas.height);
-
+        const code = jsQR(imgData.data, canvas.width, canvas.height, {
+            inversionAttempts: "attemptBoth"
+        });
+        
         if (code) {
+            // 掃描成功，立即停止掃描並處理
+            clearInterval(scanInterval);
+            scanInterval = null;
             statusText.innerText = "✅ 掃描成功！";
             statusText.style.background = "#00b900";
             onScanSuccess(code.data);
+        } else {
+            statusText.innerText = "🔍 對準 QR Code...";
+            statusText.style.background = "rgba(0,0,0,0.6)";
         }
-    }, 80);
+    }, 150);
 }
 
 async function closeCamera() {
-    clearInterval(scanInterval);
-    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
-    cameraStream = null;
+    if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+    }
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+    const video = document.getElementById('cameraPreview');
+    if (video) video.srcObject = null;
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入（直接從 URL 帶入店員資料）====================
+// ==================== 登入 ====================
 function init() {
     const url = new URL(window.location.href);
     const name = url.searchParams.get('name');
@@ -288,10 +308,9 @@ function init() {
         setupScannerListener();
     } else {
         hideLoading();
-        showModal("⚠️ <b style='color:red;'>登入逾時或參數錯誤</b><br>請重新從 LINE 選單進入系統。");
+        showModal("⚠️ 登入參數錯誤<br>請從登入頁面重新進入");
         document.getElementById('staff-name').innerText = "未登入";
         document.getElementById('role-text').innerText = "無權限";
-        document.getElementById('submitBtn').disabled = true;
     }
 }
 
