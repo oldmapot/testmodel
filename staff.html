@@ -35,6 +35,19 @@
         .camera-btn-close { background: #ff4444; color: white; }
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
+
+        /* 你要的「完美對齊」樣式 */
+        .rule-title {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: bold;
+            line-height: 1.6;
+        }
+        .rule-item {
+            margin: 0 0 6px 24px;
+            line-height: 1.6;
+            font-size: 15px;
+        }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -42,7 +55,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loadingText" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
+    <div id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
 </div>
 
 <div id="customModal">
@@ -208,10 +221,7 @@ async function onScanSuccess(scannedText) {
 async function openCamera() {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: "environment",
-                focusMode: "continuous"
-            }
+            video: { facingMode: "environment" }
         });
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
@@ -223,7 +233,7 @@ async function openCamera() {
             startScanning();
         };
     } catch (err) {
-        showModal("相機開啟失敗，請使用掃碼槍\n" + err.message);
+        showModal("無法開啟相機，請使用掃碼槍\n" + err.message);
         document.getElementById('hiddenIdInput').focus();
     }
 }
