@@ -210,68 +210,23 @@ function closeModal() {
 
 // ==================== QR Code 解析函數 ====================
 function parseScannedCode(scannedText) {
-    // 新格式: shopCode_key_userId (例如: omp_359_U123456789)
-    // 邀請碼格式: INV_shopCode_userId 或 GIFT_BY_shopCode_userId
-    
     let cleanText = String(scannedText).trim();
+    if (cleanText.indexOf("##") === 0) cleanText = cleanText.substring(2);
+    if (cleanText.toUpperCase().indexOf("GIFT_BY_") !== -1) return { type: "gift", raw: cleanText };
+    if (cleanText.toUpperCase().indexOf("INV_") === 0) return { type: "invite", raw: cleanText };
     
-    // 處理 ## 前綴（掃碼槍）
-    if (cleanText.indexOf("##") === 0) {
-        cleanText = cleanText.substring(2);
-    }
-    
-    // 處理 GIFT_BY_ 新客招待碼
-    if (cleanText.toUpperCase().indexOf("GIFT_BY_") !== -1) {
-        return { type: "gift", raw: cleanText };
-    }
-    
-    // 處理 INV_ 邀請碼
-    if (cleanText.toUpperCase().indexOf("INV_") === 0) {
-        return { type: "invite", raw: cleanText };
-    }
-    
-    // 嘗試解析新格式: shopCode_key_userId
     const parts = cleanText.split("_");
-    if (parts.length === 3) {
-        // 檢查第一部分是否為分店代號 (omp 或 swo)
-        if (parts[0] === "omp" || parts[0] === "swo") {
-            return {
-                type: "member",
-                shopCode: parts[0],
-                key: parts[1],
-                userId: parts[2],
-                raw: cleanText
-            };
-        }
+    if (parts.length === 3 && (parts[0] === "omp" || parts[0] === "swo")) {
+        return { type: "member", shopCode: parts[0], key: parts[1], userId: parts[2], raw: cleanText };
     }
-    
-    // 舊格式相容: 直接當作 userId
-    return {
-        type: "member",
-        shopCode: "",
-        key: "",
-        userId: cleanText,
-        raw: cleanText
-    };
+    return { type: "member", shopCode: "", key: "", userId: cleanText, raw: cleanText };
 }
 
 // ==================== 掃描成功處理 ====================
 async function onScanSuccess(scannedText) {
-    // 停止掃描
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    
-    // 關閉相機
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
     await closeCamera();
-    
-    // 震動回饋（如果支援）
-    if (navigator.vibrate) {
-        navigator.vibrate(200);
-    }
-    
-    // 處理掃描結果
+    if (navigator.vibrate) navigator.vibrate(200);
     await processScannedCode(scannedText);
 }
 
@@ -279,48 +234,24 @@ async function onScanSuccess(scannedText) {
 async function processScannedCode(scannedText) {
     try {
         showLoading("老娘正在查詢會員資料...");
-        
         const parsed = parseScannedCode(scannedText);
         
-        // 處理新客招待碼
-        if (parsed.type === "gift") {
+        if (parsed.type === "gift" || parsed.type === "invite") {
             hideLoading();
             customerId = "";
             document.getElementById('member-ui').style.display = 'none';
             document.getElementById('form-ui').classList.add('locked');
-            showModal(`
-                <h3 style="color:#e91e63; margin-top:0;">🎁 新客招待禮確認</h3>
-                <hr>
-                <p><b>招待內容：</b>小菜一份 或 霜淇淋一支</p>
-                <p style="font-size:14px; color:#666;">⚠️ 這是新客專用碼，請引導顧客完成註冊後再掃會員碼集點。</p>
-            `);
+            const msg = parsed.type === "gift" ? 
+                '<h3 style="color:#e91e63;">🎁 新客招待禮確認</h3><hr><p><b>招待內容：</b>小菜一份 或 霜淇淋一支</p><p style="font-size:14px;">⚠️ 請引導顧客完成註冊後再掃會員碼集點。</p>' :
+                '<h3 style="color:#ff9800;">🎉 好友邀請碼</h3><hr><p>這是推薦人分享的邀請碼！</p><p>請引導顧客完成註冊後，即可獲得新客招待禮。</p>';
+            showModal(msg);
             return;
         }
         
-        // 處理邀請碼
-        if (parsed.type === "invite") {
-            hideLoading();
-            customerId = "";
-            document.getElementById('member-ui').style.display = 'none';
-            document.getElementById('form-ui').classList.add('locked');
-            showModal(`
-                <h3 style="color:#ff9800; margin-top:0;">🎉 好友邀請碼</h3>
-                <hr>
-                <p>這是推薦人分享的邀請碼！</p>
-                <p>請引導顧客完成註冊後，即可獲得新客招待禮。</p>
-                <p style="font-size:14px; color:#666;">註冊完成後，請重新掃描會員碼進行集點。</p>
-            `);
-            return;
-        }
-        
-        // 處理會員碼
         if (parsed.type === "member") {
             const userId = parsed.userId;
-            
-            // 呼叫 GAS 查詢會員
             const res = await fetch(`${GAS_URL}?action=checkID&userId=${encodeURIComponent(userId)}&branch=${staff.branch}&staffBranchCode=${staffBranchCode}`);
             const data = await res.json();
-            
             hideLoading();
             
             if (data.isMember) {
@@ -332,21 +263,13 @@ async function processScannedCode(scannedText) {
                 document.getElementById('cus-total').innerText = data.totalSpend || 0;
                 currentPoints = Number(data.points);
                 config = data.config;
-                
-                // 顯示會員等級
                 memberLevel = data.memberLevel || "一般會員";
                 memberLevelRate = data.levelRate || 1;
                 const levelSpan = document.getElementById('member-level');
                 levelSpan.innerText = memberLevel;
-                if (memberLevel === "白金會員") {
-                    levelSpan.style.background = "#9c27b0";
-                } else if (memberLevel === "黃金會員") {
-                    levelSpan.style.background = "#ffc107";
-                    levelSpan.style.color = "#333";
-                } else {
-                    levelSpan.style.background = "#ff9800";
-                }
-                
+                if (memberLevel === "白金會員") levelSpan.style.background = "#9c27b0";
+                else if (memberLevel === "黃金會員") { levelSpan.style.background = "#ffc107"; levelSpan.style.color = "#333"; }
+                else levelSpan.style.background = "#ff9800";
                 document.getElementById('totalSpend').focus();
                 doCalc();
             } else {
@@ -354,11 +277,8 @@ async function processScannedCode(scannedText) {
             }
             return;
         }
-        
-        // 無法解析
         hideLoading();
         showModal("<p style='color:red;'>⚠️ 無法辨識的 QR Code！</p><p>請確認是會員出示的消費條碼。</p>");
-        
     } catch (err) {
         hideLoading();
         console.error("查詢失敗:", err);
@@ -366,17 +286,10 @@ async function processScannedCode(scannedText) {
     }
 }
 
-// ==================== 相機掃描功能 ====================
+// ==================== 相機掃描功能（自動允許權限）====================
 async function openCamera() {
     try {
-        // 先檢查是否已有權限
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach(track => track.stop()); // 測試用，馬上關閉
-        
-        // 已有權限，直接開啟相機
-        startCamera();
-    } catch(e) {
-        // 沒有權限，才顯示請求畫面
+        // 直接請求相機權限，瀏覽器會記住允許狀態
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: "environment" } 
         });
@@ -385,33 +298,13 @@ async function openCamera() {
         video.srcObject = stream;
         await video.play();
         
-        hideLoading();
-        
-        // 顯示相機視窗
         document.getElementById('cameraContainer').style.display = 'flex';
         document.getElementById('scanStatusText').innerText = "對準 QR Code 進行掃描...";
-        
-        // 開始掃描
         startScanning();
-        
     } catch (err) {
-        hideLoading();
         console.error("相機開啟失敗:", err);
-        
-        // 嘗試開啟前置相機
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            cameraStream = stream;
-            const video = document.getElementById('cameraPreview');
-            video.srcObject = stream;
-            await video.play();
-            hideLoading();
-            document.getElementById('cameraContainer').style.display = 'flex';
-            startScanning();
-        } catch (e) {
-            showModal("無法開啟相機，請檢查權限設定，或改用掃碼槍\n\n錯誤：" + e.message);
-            document.getElementById('hiddenIdInput').focus();
-        }
+        showModal("無法開啟相機，請檢查權限設定，或改用掃碼槍\n\n錯誤：" + err.message);
+        document.getElementById('hiddenIdInput').focus();
     }
 }
 
@@ -419,24 +312,15 @@ function startScanning() {
     const video = document.getElementById('cameraPreview');
     const canvas = document.getElementById('qrCanvas');
     const context = canvas.getContext('2d');
-    
-    if (scanInterval) {
-        clearInterval(scanInterval);
-    }
-    
+    if (scanInterval) clearInterval(scanInterval);
     scanInterval = setInterval(() => {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
             const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, canvas.width, canvas.height, {
-                inversionAttempts: "dontInvert",
-            });
-            
+            const code = jsQR(imageData.data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
             if (code) {
-                // 掃描成功，停止掃描
                 clearInterval(scanInterval);
                 scanInterval = null;
                 document.getElementById('scanStatusText').innerText = "掃描成功！處理中...";
@@ -447,56 +331,70 @@ function startScanning() {
 }
 
 async function closeCamera() {
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
-    
-    const video = document.getElementById('cameraPreview');
-    video.srcObject = null;
-    
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (cameraStream) { cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null; }
+    document.getElementById('cameraPreview').srcObject = null;
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入與初始化 ====================
+// ==================== 登入與初始化（直接從 URL 帶入店員資料）====================
 async function init() {
     try {
-        showLoading("正在驗證店員權限...");
-        
         const urlParams = new URLSearchParams(window.location.search);
         const staffUserId = urlParams.get('userId');
         const staffKeyword = urlParams.get('keyword');
         staffBranchCode = urlParams.get('branchCode') || "";
-        
+        const staffNameParam = urlParams.get('name');
+        const staffBranchParam = urlParams.get('branch');
+        const staffRoleParam = urlParams.get('role');
+
+        // 如果 URL 已帶有店員資料（從登入頁跳轉過來），直接使用，不再呼叫 GAS 驗證
+        if (staffNameParam && staffBranchParam) {
+            staff = {
+                success: true,
+                name: staffNameParam,
+                branch: staffBranchParam,
+                role: staffRoleParam || "店員"
+            };
+            document.getElementById('shop-name').innerText = staff.branch;
+            document.getElementById('staff-name').innerText = staff.name;
+            document.getElementById('role-text').innerText = staff.role;
+            hideLoading();
+            document.getElementById('hiddenIdInput').focus();
+            setupScannerListener();
+            // 預先請求相機權限（讓瀏覽器記住）
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch(e) { console.log("相機權限尚未允許，點擊掃描時會再請求"); }
+            return;
+        }
+
+        // 若無帶入店員資料，則呼叫 GAS 驗證（相容舊版）
         if (!staffUserId || !staffKeyword) {
             hideLoading();
             showModal("請從正確的登入連結進入<br>參數：?userId=xxx&keyword=xxx");
             return;
         }
         
+        showLoading("正在驗證店員權限...");
         const res = await fetch(`${GAS_URL}?action=staffLogin&userId=${staffUserId}&keyword=${staffKeyword}&branchCode=${staffBranchCode}`);
-        staff = await res.json();
+        const result = await res.json();
         
-        if (staff.success) {
+        if (result.success) {
+            staff = result;
             document.getElementById('shop-name').innerText = staff.branch || "老娘領地";
             document.getElementById('staff-name').innerText = staff.name;
             document.getElementById('role-text').innerText = staff.role || "店員";
             hideLoading();
-            
-            // 聚焦到隱藏輸入框（支援掃碼槍）
             document.getElementById('hiddenIdInput').focus();
-            
-            // 設定掃碼槍監聽
             setupScannerListener();
-            
+            // 預先請求相機權限
+            try {
+                await navigator.mediaDevices.getUserMedia({ video: true });
+            } catch(e) { console.log("相機權限尚未允許"); }
         } else {
             hideLoading();
-            showModal("權限驗證失敗：" + (staff.message || "請確認帳號密碼是否正確"));
+            showModal("權限驗證失敗：" + (result.message || "請確認帳號密碼是否正確"));
         }
     } catch (e) {
         hideLoading();
@@ -509,29 +407,22 @@ function setupScannerListener() {
     const input = document.getElementById('hiddenIdInput');
     let scanBuffer = "";
     let scanTimeout = null;
-    
     input.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
-            if (scanBuffer.length > 0) {
-                processScannedCode(scanBuffer);
-                scanBuffer = "";
-            }
+            if (scanBuffer.length > 0) { processScannedCode(scanBuffer); scanBuffer = ""; }
             if (scanTimeout) clearTimeout(scanTimeout);
         } else {
             scanBuffer += e.key;
             if (scanTimeout) clearTimeout(scanTimeout);
             scanTimeout = setTimeout(() => {
-                if (scanBuffer.length > 0) {
-                    processScannedCode(scanBuffer);
-                    scanBuffer = "";
-                }
+                if (scanBuffer.length > 0) { processScannedCode(scanBuffer); scanBuffer = ""; }
             }, 150);
         }
         this.value = "";
     });
 }
 
-// ==================== 原有功能（完全保留）====================
+// ==================== 原有功能 ====================
 function toggleMode() {
     const isTicket = document.getElementById('ticketMode').checked;
     document.getElementById('normal-fields').style.display = isTicket ? 'none' : 'block';
@@ -543,7 +434,6 @@ function doCalc() {
     if (!config.earnRate) return;
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
-    
     if (isTicket) {
         const tBuy = Number(document.getElementById('buyTicket').value) || 0;
         newPts = Math.floor(tBuy * config.ticketRate);
@@ -554,10 +444,7 @@ function doCalc() {
         const maxRedeem = (settleBase >= config.minSpend) ? Math.min(currentPoints, Math.floor(settleBase * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = maxRedeem;
         redeem = Number(document.getElementById('redeemAmount').value) || 0;
-        if (redeem > maxRedeem) {
-            redeem = maxRedeem;
-            document.getElementById('redeemAmount').value = maxRedeem;
-        }
+        if (redeem > maxRedeem) { redeem = maxRedeem; document.getElementById('redeemAmount').value = maxRedeem; }
         newPts = Math.floor((settleBase - redeem) * config.earnRate);
     }
     document.getElementById('new-pts').innerText = newPts;
@@ -570,12 +457,10 @@ async function submitData() {
     btn.innerText = "處理中...";
     showLoading("正在處理結帳與發放點數...");
 
-    let cleanId = customerId;
-
     const payload = {
         action: "addPoints",
         isTicketMode: document.getElementById('ticketMode').checked,
-        customerId: cleanId,
+        customerId: customerId,
         branch: staff.branch,
         staffName: staff.name,
         staffRole: staff.role,
@@ -593,20 +478,15 @@ async function submitData() {
     try {
         const res = await fetch(GAS_URL, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-
         const result = await res.json();
-
         if (result.success) {
             hideLoading();
             showModal("✅ 結帳與股東分紅發放完成！");
             setTimeout(() => {
                 closeModal();
-                // 重置表單
                 document.getElementById('totalSpend').value = "";
                 document.getElementById('ticketSpend').value = "";
                 document.getElementById('redeemAmount').value = "";
@@ -620,7 +500,6 @@ async function submitData() {
         } else {
             throw new Error(result.message || "伺服器錯誤");
         }
-
     } catch (e) {
         hideLoading();
         showModal("提交失敗: " + e.message);
