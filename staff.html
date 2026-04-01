@@ -110,7 +110,7 @@
             結帳後總資產：<b id="after-pts">0</b> 點
         </div>
 
-        <button class="btn btn-submit" id="submitBtn" onclick="">確認過卡</button>
+       <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
     </div>
 </div>
 
@@ -377,81 +377,45 @@ function doCalc() {
 }
 
 // ==================== ✅ 修好：提交函數 ====================
-// ==================== ✅ 手機專用：錯誤直接顯示在畫面 ====================
 async function submitData() {
+  if (!customerId) return alert("❌ 請先掃描會員！");
+
+  const isTicketMode = document.getElementById('ticketMode').checked;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  showLoading("同步老娘帳本中...");
+
+  const payload = {
+    action: "addPoints", // 雖然 GAS 沒判斷，但帶帶著備用
+    customerId: customerId,
+    branch: staff.branch,
+    staffName: staff.name,
+    staffRole: staff.role,
+    isTicketMode: isTicketMode,
+    totalSpend: Number(document.getElementById('totalSpend').value) || 0,
+    ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
+    redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
+    buyTicket: Number(document.getElementById('buyTicket').value) || 0,
+    // 記得補上這些 GAS 需要的比例，否則計算會變 0
+    earnRate: config.earnRate, 
+    ticketRate: config.ticketRate
+  };
+
   try {
-    // 基本檢查
-    if (!customerId) {
-      alert("❌ 請先掃描會員條碼！");
-      return;
-    }
-
-    const isTicketMode = document.getElementById('ticketMode').checked;
-    let totalSpend    = Number(document.getElementById('totalSpend').value) || 0;
-    let ticketSpend   = Number(document.getElementById('ticketSpend').value) || 0;
-    let redeemAmount  = Number(document.getElementById('redeemAmount').value) || 0;
-    let buyTicket     = Number(document.getElementById('buyTicket').value) || 0;
-
-    if (!isTicketMode && totalSpend <= 0) {
-      alert("❌ 請輸入消費金額！");
-      return;
-    }
-    if (isTicketMode && buyTicket <= 0) {
-      alert("❌ 請輸入購買餐券金額！");
-      return;
-    }
-
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.textContent = "處理中...";
-    showLoading("提交中...");
-
-    // 🔥 關鍵：改用 form 格式提交，最兼容 GAS
-    const formData = new FormData();
-    formData.append('action', 'addPoints');
-    formData.append('customerId', customerId);
-    formData.append('branch', staff.branch || '');
-    formData.append('staffName', staff.name || '');
-    formData.append('isTicketMode', isTicketMode ? 'Y' : 'N');
-    formData.append('totalSpend', totalSpend);
-    formData.append('ticketSpend', ticketSpend);
-    formData.append('redeemAmount', redeemAmount);
-    formData.append('buyTicket', buyTicket);
-
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      body: formData,
-      mode: 'cors',
+      mode: 'no-cors', // 重要：避免手機瀏覽器跨網域阻擋
+      headers: { 'Content-Type': 'text/plain' }, 
+      body: JSON.stringify(payload)
     });
 
-    const text = await res.text();
     hideLoading();
-    btn.disabled = false;
-    btn.textContent = "確認過卡";
-
-    // 直接顯示後端回傳
-    alert(`
-✅ 提交結果：
-狀態：${res.status} ${res.statusText}
-回傳：${text.slice(0, 200)}
-    `);
-
-    if (text.includes('SUCCESS') || text.includes('成功')) {
-      alert("✅ 結帳成功！");
-      setTimeout(() => location.reload(), 1500);
-    }
-
+    alert("✅ 請求已發送！請檢查 LINE 通知。");
+    location.reload();
   } catch (err) {
     hideLoading();
-    document.getElementById('submitBtn').disabled = false;
-    document.getElementById('submitBtn').textContent = "確認過卡";
-
-    // 🔥 直接把錯誤彈出來！
-    alert(`
-❌ 提交失敗（手機直接看）：
-類型：${err.name}
-訊息：${err.message}
-    `);
+    btn.disabled = false;
+    alert("❌ 傳送失敗：" + err.message);
   }
 }
 // 啟動
