@@ -201,163 +201,29 @@ function showToast(msg) { let t = document.getElementById('toast'); t.innerText 
 function openSideMenu() { document.getElementById('sideMenu').classList.add('open'); document.getElementById('sideMenuOverlay').classList.add('show'); }
 function closeSideMenu() { document.getElementById('sideMenu').classList.remove('open'); document.getElementById('sideMenuOverlay').classList.remove('show'); }
 
-function openRightsModal(e) { 
-  if(e) e.stopPropagation(); 
-  pendingCheckboxId = 'agreeRights'; 
-  
-  openModal(`
-    <style>
-      .rights-container {
-        font-family: "Microsoft JhengHei", sans-serif;
-        font-size: 16px;
-        line-height: 1.8;
-        color: #222;
-        padding: 0 8px;
-      }
-      /* 頂級項目：◆ 開頭，標題加粗 */
-      .main-item {
-        position: relative;
-        padding-left: 28px; /* 給菱形預留空間 */
-        margin-bottom: 10px;
-        font-weight: bold;
-      }
-      .main-item::before {
-        content: "◆";
-        position: absolute;
-        left: 0;
-        top: 0;
-        font-size: 16px;
-        line-height: 1.8;
-        color: #000;
-      }
-      /* 子項目：• 開頭，精準對齊頂級項目的第一個字 */
-      .sub-item {
-        position: relative;
-        padding-left: 28px; /* 給圓點預留空間 */
-        margin: 4px 0 4px 28px; /* 左邊縮排28px，剛好對齊「個」字 */
-        font-weight: normal;
-      }
-      .sub-item::before {
-        content: "•";
-        position: absolute;
-        left: 0;
-        top: 0;
-        font-size: 16px;
-        line-height: 1.8;
-        color: #000;
-      }
-      /* 頂級項目換行內容：對齊子項目 */
-      .main-item .wrap-text {
-        display: block;
-        padding-left: 28px;
-        font-weight: normal;
-      }
-    </style>
-
-    <h3 style="text-align:center; margin:0 0 16px 0; font-size:18px; color:#333;">📋 會員權益</h3>
-    
-    <div class="rights-container">
-      <div class="main-item">點數價值：1 點 = NT$1 元。</div>
-
-      <div class="main-item">個人集點回饋：
-        <div class="sub-item">以「實付金額（折抵/折扣後）」之 5% 計算。</div>
-        <div class="sub-item">點數效期：自取得日起算 12 個月。</div>
-      </div>
-
-      <div class="main-item">推薦分紅回饋：
-        <div class="sub-item">以被推薦人「實付金額」之 2% 計算。</div>
-        <div class="sub-item">點數效期：自取得日起算 6 個月。</div>
-        <div class="sub-item"><b>資格限制</b>：若推薦人超過 <b>90 天</b>無店內消費紀錄，系統將暫停發放該筆推薦回饋點數。</div>
-      </div>
-
-      <div class="main-item">生效時間：
-        <span class="wrap-text">取得日之「隔日」生效（明日 00:00 後方可使用）。</span>
-      </div>
-
-      <div class="main-item">購買餐券：
-        <div class="sub-item">依購買金額提撥 1% 點數回饋。</div>
-        <div class="sub-item"><b>注意</b>：購買餐券時不可使用點數折抵。</div>
-      </div>
-
-      <div class="main-item">餐券消費：
-        <span class="wrap-text">扣除面額後之「剩餘實付額」提撥 2% 點數。</span>
-      </div>
-
-      <div class="main-item">折抵限制：
-        <div class="sub-item"><b>頻次限制</b>：單一帳號每日限折抵一次。</div>
-        <div class="sub-item"><b>特殊檔期</b>：春節、母親節等指定活動期暫停折抵。</div>
-      </div>
-
-      <div class="main-item">未盡事宜：依店內或系統最新公告為主。</div>
-    </div>
-  `); 
-};
-
-function openLegalModal(e) { 
-  if(e) e.stopPropagation(); 
-  pendingCheckboxId = 'agreeLegal'; 
-  
-  openModal(`
-    <style>
-      .legal-container {
-        font-family: "Microsoft JhengHei", sans-serif;
-        font-size: 16px;
-        line-height: 1.8;
-        color: #222;
-        padding: 0 8px;
-      }
-      /* 頂級項目：◆ 開頭，標題加粗 */
-      .main-item {
-        position: relative;
-        padding-left: 28px; /* 給菱形預留空間 */
-        margin-bottom: 10px;
-        font-weight: bold;
-      }
-      .main-item::before {
-        content: "◆";
-        position: absolute;
-        left: 0;
-        top: 0;
-        font-size: 16px;
-        line-height: 1.8;
-        color: #000;
-      }
-      /* 頂級項目換行內容：對齊子項目 */
-      .main-item .wrap-text {
-        display: block;
-        padding-left: 28px;
-        font-weight: normal;
-      }
-    </style>
-
-    <h3 style="text-align:center; margin:0 0 16px 0; font-size:18px; color:#333;">⚖️ 法務免責及管控聲明</h3>
-    
-    <div class="legal-container">
-      <div class="main-item">禁止轉讓：
-        <span class="wrap-text">點數不開放轉讓予他人或合併帳號使用，僅限於本平台指定之店家進行消費折抵。</span>
-      </div>
-
-      <div class="main-item">非現金資產：
-        <span class="wrap-text">本平台發放之點數屬無償贈與之紅利，不具貨幣價值，不得要求兌換現金。</span>
-      </div>
-
-      <div class="main-item">活動終止權：
-        <span class="wrap-text">本平台及所屬店家保有隨時修改、暫停或終止點數贈與及折抵活動之權利，相關異動將以官方公告為準。</span>
-      </div>
-
-      <div class="main-item">營運調整權：
-        <span class="wrap-text">若因系統升級、營運政策調整、店家歇業或不可抗力因素（如自然災害、系統受駭等），導致點數失效，會員不得要求補發或損害賠償。</span>
-      </div>
-
-      <div class="main-item">誠信原則：
-        <span class="wrap-text">為維護公平權益，系統將監測並判別<b>異常集點、虛假推薦、規避邏輯</b>等行為。若經查證屬實，店家有權逕行凍結帳號、作廢點數並取消資格，且不另行通知。</span>
-      </div>
-
-      <div class="main-item">最終解釋權：
-        <span class="wrap-text">本公司保有對所有活動規則與點數機制之最終解釋權。</span>
-      </div>
-    </div>
-  `); 
+// 範例：點擊按鈕顯示會員規則彈窗
+function showMemberRule() {
+  const ruleHtml = `
+  <ul class="rule-list" style="margin:0; padding:0;">
+    <li><b>點數價值</b>：1 點 = NT$1 元。</li>
+    <li>
+      <b>個人集點回饋</b>：
+      <ul>
+        <li>以「實付金額（折抵/折扣後）」之 5% 計算。</li>
+        <li>點數有效期：自取得日起算 12 個月。</li>
+      </ul>
+    </li>
+    <li>
+      <b>推薦分紅回饋</b>：
+      <ul>
+        <li>以被推薦人「實付金額」之 2% 計算。</li>
+        <li>點數有效期：自取得日起算 6 個月。</li>
+        <li>資格限制：若推薦人超過 <b>90 天</b>無店內消費紀錄，<br>系統將暫停發放該筆推薦回饋點數。</li>
+      </ul>
+    </li>
+  </ul>
+  `;
+  showModal(ruleHtml);
 }
 function openRightsDetail() { pendingCheckboxId = null; openRightsModal(); }
 function openLegalDetail() { pendingCheckboxId = null; openLegalModal(); }
