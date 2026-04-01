@@ -165,28 +165,19 @@ async function fetchMemberInfo(userId) {
 
 // ==================== 掃描處理 ====================
 async function onScanSuccess(scannedText) {
-    // 先停止掃描
-    if (scanInterval) { 
-        clearInterval(scanInterval); 
-        scanInterval = null; 
-    }
-    
-    // 關閉相機
+    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
     await closeCamera();
-    
-    // 震動回饋
     if (navigator.vibrate) navigator.vibrate(200);
     
     const parsed = parseScannedCode(scannedText);
-    
-    if (parsed.type === "gift" || parsed.type === "invite") {
-        showModal(`<h3>🎁 新客招待/邀請碼</h3><p>請引導顧客完成註冊後再掃碼集點。</p>`);
-        return;
-    }
-    
+    console.log("解析結果:", parsed);
+
     try {
-        showLoading("查詢會員...");
-        const data = await fetchMemberInfo(parsed.userId);
+        showLoading("查詢會員中...");
+        // 🔥 修正：傳入 branch 參數，讓後端正確判斷品牌
+        const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}`;
+        const res = await fetch(url);
+        const data = await res.json();
         hideLoading();
         
         if (data.success && data.member) {
@@ -204,11 +195,11 @@ async function onScanSuccess(scannedText) {
             document.getElementById('totalSpend').focus();
             doCalc();
         } else {
-            showModal("⚠️ 查無此會員編號！");
+            showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
         }
     } catch (err) {
         hideLoading();
-        showModal("查詢失敗：" + err.message);
+        showModal("系統連線失敗：" + err.message);
     }
 }
 
@@ -293,24 +284,52 @@ async function closeCamera() {
 
 // ==================== 登入 ====================
 function init() {
-    const url = new URL(window.location.href);
-    const name = url.searchParams.get('name');
-    const branch = url.searchParams.get('branch');
-    const role = url.searchParams.get('role');
+    // 1. 先從瀏覽器記憶體 (LocalStorage) 抓看看有沒有存過資料
+    let savedName = localStorage.getItem('staff_name');
+    let savedBranch = localStorage.getItem('staff_branch');
+    let savedRole = localStorage.getItem('staff_role') || "夥伴";
+
+    // 2. 如果沒存過，才跳出視窗問一次
+    if (!savedName || !savedBranch) {
+        savedName = prompt("【初次設定】請輸入店員姓名：", "");
+        savedBranch = prompt("【初次設定】請輸入分店（1.河堤店 2.一點甜）：", "老娘鍋(河堤店)");
+        
+        if (savedName && savedBranch) {
+            // 存進瀏覽器，下次開網頁就不用再打了
+            localStorage.setItem('staff_name', savedName);
+            localStorage.setItem('staff_branch', savedBranch);
+            localStorage.setItem('staff_role', savedRole);
+        } else {
+            alert("必須輸入店員資訊才能使用系統！請刷新頁面重新設定。");
+            return;
+        }
+    }
+
+    // 3. 套用到全域變數 staff
+    staff = { 
+        name: savedName, 
+        branch: savedBranch, 
+        role: savedRole 
+    };
     
-    if (name && branch) {
-        staff = { name, branch, role: role || "夥伴" };
-        document.getElementById('staff-name').innerText = staff.name;
-        document.getElementById('role-text').innerText = staff.role;
-        document.getElementById('shop-name').innerText = staff.branch;
-        hideLoading();
-        document.getElementById('hiddenIdInput').focus();
-        setupScannerListener();
-    } else {
-        hideLoading();
-        showModal("⚠️ 登入參數錯誤<br>請從登入頁面重新進入");
-        document.getElementById('staff-name').innerText = "未登入";
-        document.getElementById('role-text').innerText = "無權限";
+    // 4. 更新畫面 UI
+    document.getElementById('staff-name').innerText = staff.name;
+    document.getElementById('role-text').innerText = staff.role;
+    document.getElementById('shop-name').innerText = staff.branch;
+    
+    // 5. 隱藏載入畫面，聚焦掃碼槍輸入框
+    hideLoading();
+    document.getElementById('hiddenIdInput').focus();
+    setupScannerListener();
+    
+    console.log("✅ 店員身分已確認（來自記憶體）：", staff);
+}
+
+// 額外加一個「登出/切換帳號」的按鈕功能，以防萬一要換人
+function resetStaff() {
+    if(confirm("確定要清除店員設定並重新登入嗎？")) {
+        localStorage.clear();
+        location.reload();
     }
 }
 
