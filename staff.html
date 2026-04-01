@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>老娘領地-店員端系統-G</title>
+    <title>老娘領地-店員端系統</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; background: #f4f7f6; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
@@ -110,7 +110,7 @@
             結帳後總資產：<b id="after-pts">0</b> 點
         </div>
 
-        <button class="btn btn-submit" id="submitBtn" onclick="">確認過卡</button>
+        <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
     </div>
 </div>
 
@@ -158,7 +158,8 @@ function parseScannedCode(scannedText) {
 
 // ==================== 查詢會員 ====================
 async function fetchMemberInfo(userId) {
-    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}`;
+    const timestamp = new Date().getTime();
+    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&t=${timestamp}`;
     const res = await fetch(url);
     return await res.json();
 }
@@ -170,24 +171,26 @@ async function onScanSuccess(scannedText) {
     if (navigator.vibrate) navigator.vibrate(200);
     
     const parsed = parseScannedCode(scannedText);
-    console.log("解析結果:", parsed);
-
+    
+    if (parsed.type === "gift" || parsed.type === "invite") {
+        showModal(`<h3>🎁 新客招待/邀請碼</h3><p>請引導顧客完成註冊後再掃碼集點。</p>`);
+        return;
+    }
+    
     try {
-        showLoading("連線中...");
-        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
-        
-        const res = await fetch(finalUrl, { 
-            method: "GET",
-            mode: "cors"
-        });
-        
-        const data = await res.json();
+        showLoading("查詢會員...");
+        const data = await fetchMemberInfo(parsed.userId);
         hideLoading();
         
         if (data.success && data.member) {
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
+            
+            // 更新 config
+            if (data.config) {
+                config = data.config;
+            }
             
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
@@ -199,27 +202,21 @@ async function onScanSuccess(scannedText) {
             document.getElementById('totalSpend').focus();
             doCalc();
         } else {
-            showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
+            showModal("⚠️ 查無此會員編號！");
         }
     } catch (err) {
         hideLoading();
-        showModal("系統連線失敗：" + err.message);
+        showModal("查詢失敗：" + err.message);
     }
 }
 
 // ==================== 相機 ====================
 async function openCamera() {
     try {
-        if (cameraStream) {
-            await closeCamera();
-        }
+        if (cameraStream) await closeCamera();
         
         const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-                facingMode: "environment",
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
@@ -231,8 +228,7 @@ async function openCamera() {
             startScanning();
         };
     } catch (err) {
-        console.error("相機錯誤:", err);
-        showModal("無法開啟相機，請檢查權限設定\n\n" + err.message);
+        showModal("無法開啟相機，請檢查權限\n" + err.message);
         document.getElementById('hiddenIdInput').focus();
     }
 }
@@ -253,9 +249,7 @@ function startScanning() {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imgData.data, canvas.width, canvas.height, {
-            inversionAttempts: "attemptBoth"
-        });
+        const code = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: "attemptBoth" });
         
         if (code) {
             clearInterval(scanInterval);
@@ -263,68 +257,39 @@ function startScanning() {
             statusText.innerText = "✅ 掃描成功！";
             statusText.style.background = "#00b900";
             onScanSuccess(code.data);
-        } else {
-            statusText.innerText = "🔍 對準 QR Code...";
-            statusText.style.background = "rgba(0,0,0,0.6)";
         }
     }, 150);
 }
 
 async function closeCamera() {
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-    }
-    const video = document.getElementById('cameraPreview');
-    if (video) video.srcObject = null;
+    if (scanInterval) clearInterval(scanInterval);
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    document.getElementById('cameraPreview').srcObject = null;
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
 // ==================== 登入 ====================
 function init() {
-    let savedName = localStorage.getItem('staff_name');
-    let savedBranch = localStorage.getItem('staff_branch');
-    let savedRole = localStorage.getItem('staff_role') || "夥伴";
-
-    if (!savedName || !savedBranch) {
-        savedName = prompt("【初次設定】請輸入店員姓名：", "");
-        savedBranch = prompt("【初次設定】請輸入分店（1.河堤店 2.一點甜）：", "老娘鍋(河堤店)");
-        
-        if (savedName && savedBranch) {
-            localStorage.setItem('staff_name', savedName);
-            localStorage.setItem('staff_branch', savedBranch);
-            localStorage.setItem('staff_role', savedRole);
-        } else {
-            alert("必須輸入店員資訊才能使用系統！請刷新頁面重新設定。");
-            return;
-        }
-    }
-
-    staff = { 
-        name: savedName, 
-        branch: savedBranch, 
-        role: savedRole 
-    };
+    const url = new URL(window.location.href);
+    const name = url.searchParams.get('name');
+    const branch = url.searchParams.get('branch');
+    const role = url.searchParams.get('role');
     
-    document.getElementById('staff-name').innerText = staff.name;
-    document.getElementById('role-text').innerText = staff.role;
-    document.getElementById('shop-name').innerText = staff.branch;
-    
-    hideLoading();
-    document.getElementById('hiddenIdInput').focus();
-    setupScannerListener();
-    
-    console.log("✅ 店員身分已確認（來自記憶體）：", staff);
-}
-
-function resetStaff() {
-    if(confirm("確定要清除店員設定並重新登入嗎？")) {
-        localStorage.clear();
-        location.reload();
+    if (name && branch) {
+        staff = { name, branch, role: role || "夥伴" };
+        document.getElementById('staff-name').innerText = staff.name;
+        document.getElementById('role-text').innerText = staff.role;
+        document.getElementById('shop-name').innerText = staff.branch;
+        hideLoading();
+        document.getElementById('hiddenIdInput').focus();
+        setupScannerListener();
+    } else {
+        hideLoading();
+        showModal("⚠️ 登入參數錯誤<br>請從登入頁面重新進入");
+        document.getElementById('staff-name').innerText = "未登入";
+        document.getElementById('role-text').innerText = "無權限";
+        document.getElementById('submitBtn').disabled = true;
     }
 }
 
@@ -376,84 +341,77 @@ function doCalc() {
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== ✅ 修好：提交函數 ====================
-// ==================== ✅ 手機專用：錯誤直接顯示在畫面 ====================
+// ==================== 提交 ====================
 async function submitData() {
-  try {
-    // 基本檢查
-    if (!customerId) {
-      alert("❌ 請先掃描會員條碼！");
-      return;
+    alert("submitData 被呼叫了！");
+    
+    if (!staff.name || !staff.branch) { 
+        showModal("❌ 系統偵測不到店員資料，請重新登入"); 
+        return; 
     }
-
-    const isTicketMode = document.getElementById('ticketMode').checked;
-    let totalSpend    = Number(document.getElementById('totalSpend').value) || 0;
-    let ticketSpend   = Number(document.getElementById('ticketSpend').value) || 0;
-    let redeemAmount  = Number(document.getElementById('redeemAmount').value) || 0;
-    let buyTicket     = Number(document.getElementById('buyTicket').value) || 0;
-
-    if (!isTicketMode && totalSpend <= 0) {
-      alert("❌ 請輸入消費金額！");
-      return;
+    if (!customerId) { 
+        showModal("請先掃描會員碼"); 
+        return; 
     }
-    if (isTicketMode && buyTicket <= 0) {
-      alert("❌ 請輸入購買餐券金額！");
-      return;
-    }
-
+    
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    btn.textContent = "處理中...";
-    showLoading("提交中...");
-
-    // 🔥 關鍵：改用 form 格式提交，最兼容 GAS
-    const formData = new FormData();
-    formData.append('action', 'addPoints');
-    formData.append('customerId', customerId);
-    formData.append('branch', staff.branch || '');
-    formData.append('staffName', staff.name || '');
-    formData.append('isTicketMode', isTicketMode ? 'Y' : 'N');
-    formData.append('totalSpend', totalSpend);
-    formData.append('ticketSpend', ticketSpend);
-    formData.append('redeemAmount', redeemAmount);
-    formData.append('buyTicket', buyTicket);
-
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      body: formData,
-      mode: 'cors',
-    });
-
-    const text = await res.text();
-    hideLoading();
-    btn.disabled = false;
-    btn.textContent = "確認過卡";
-
-    // 直接顯示後端回傳
-    alert(`
-✅ 提交結果：
-狀態：${res.status} ${res.statusText}
-回傳：${text.slice(0, 200)}
-    `);
-
-    if (text.includes('SUCCESS') || text.includes('成功')) {
-      alert("✅ 結帳成功！");
-      setTimeout(() => location.reload(), 1500);
+    btn.innerText = "處理中...";
+    showLoading("結帳中...");
+    
+    const payload = {
+        action: "addPoints",
+        isTicketMode: document.getElementById('ticketMode').checked,
+        customerId: customerId,
+        branch: staff.branch,
+        staffName: staff.name,
+        staffRole: staff.role,
+        totalSpend: Number(document.getElementById('totalSpend').value) || 0,
+        ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
+        redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
+        buyTicket: Number(document.getElementById('buyTicket').value) || 0,
+        earnRate: config.earnRate,
+        ticketRate: config.ticketRate,
+        refRate: config.refRate,
+        memberLevel: memberLevel,
+        memberLevelRate: 1
+    };
+    
+    console.log("發送 payload:", payload);
+    
+    try {
+        const formData = new URLSearchParams();
+        formData.append('postData', JSON.stringify(payload));
+        
+        const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        });
+        
+        const result = await res.text();
+        console.log("伺服器回應:", result);
+        
+        hideLoading();
+        
+        if (result === "SUCCESS") {
+            showModal("✅ 結帳完成！");
+            setTimeout(() => {
+                closeModal();
+                location.reload();
+            }, 2000);
+        } else {
+            throw new Error(result || "伺服器錯誤");
+        }
+    } catch (e) {
+        hideLoading();
+        console.error("提交錯誤:", e);
+        showModal("提交失敗：" + e.message);
+        btn.disabled = false;
+        btn.innerText = "確認過卡";
     }
-
-  } catch (err) {
-    hideLoading();
-    document.getElementById('submitBtn').disabled = false;
-    document.getElementById('submitBtn').textContent = "確認過卡";
-
-    // 🔥 直接把錯誤彈出來！
-    alert(`
-❌ 提交失敗（手機直接看）：
-類型：${err.name}
-訊息：${err.message}
-    `);
-  }
 }
+
 // 啟動
 init();
 </script>
