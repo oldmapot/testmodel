@@ -369,19 +369,17 @@ async function processScannedCode(scannedText) {
 // ==================== 相機掃描功能 ====================
 async function openCamera() {
     try {
-        // 檢查瀏覽器是否支援 getUserMedia
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            showModal("您的瀏覽器不支援相機功能，請改用掃碼槍");
-            return;
-        }
+        // 先檢查是否已有權限
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(track => track.stop()); // 測試用，馬上關閉
         
-        showLoading("正在開啟相機...");
-        
-        // 開啟後置相機
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { exact: "environment" } }
+        // 已有權限，直接開啟相機
+        startCamera();
+    } catch(e) {
+        // 沒有權限，才顯示請求畫面
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: "environment" } 
         });
-        
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
         video.srcObject = stream;
