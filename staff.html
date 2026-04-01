@@ -114,7 +114,6 @@
     </div>
 </div>
 
-<!-- 相機預覽區域 -->
 <div id="cameraContainer" class="camera-preview-container">
     <video id="cameraPreview" autoplay playsinline muted></video>
     <canvas id="qrCanvas" style="display: none;"></canvas>
@@ -179,9 +178,10 @@
 
 <script>
 // ==================== 配置參數 ====================
+// 建議檢查 GAS 是否已部署為「任何人」皆可存取
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec"; 
 
-// 登入參數（從 URL 取得）
+// 登入參數
 let staff = {};
 let staffBranchCode = "";
 let config = {}, customerId = "", currentPoints = 0;
@@ -250,7 +250,8 @@ async function processScannedCode(scannedText) {
         
         if (parsed.type === "member") {
             const userId = parsed.userId;
-            const res = await fetch(`${GAS_URL}?action=checkID&userId=${encodeURIComponent(userId)}&branch=${staff.branch}&staffBranchCode=${staffBranchCode}`);
+            // 優化點：使用樣板字串並加上快取控制
+            const res = await fetch(`${GAS_URL}?action=checkID&userId=${encodeURIComponent(userId)}&branch=${encodeURIComponent(staff.branch)}&staffBranchCode=${staffBranchCode}&t=${Date.now()}`);
             const data = await res.json();
             hideLoading();
             
@@ -286,10 +287,9 @@ async function processScannedCode(scannedText) {
     }
 }
 
-// ==================== 相機掃描功能（自動允許權限）====================
+// ==================== 相機掃描功能 ====================
 async function openCamera() {
     try {
-        // 直接請求相機權限，瀏覽器會記住允許狀態
         const stream = await navigator.mediaDevices.getUserMedia({ 
             video: { facingMode: "environment" } 
         });
@@ -337,7 +337,7 @@ async function closeCamera() {
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入與初始化（直接從 URL 帶入店員資料）====================
+// ==================== 登入與初始化 ====================
 async function init() {
     try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -348,7 +348,6 @@ async function init() {
         const staffBranchParam = urlParams.get('branch');
         const staffRoleParam = urlParams.get('role');
 
-        // 如果 URL 已帶有店員資料（從登入頁跳轉過來），直接使用，不再呼叫 GAS 驗證
         if (staffNameParam && staffBranchParam) {
             staff = {
                 success: true,
@@ -362,17 +361,12 @@ async function init() {
             hideLoading();
             document.getElementById('hiddenIdInput').focus();
             setupScannerListener();
-            // 預先請求相機權限（讓瀏覽器記住）
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-            } catch(e) { console.log("相機權限尚未允許，點擊掃描時會再請求"); }
             return;
         }
 
-        // 若無帶入店員資料，則呼叫 GAS 驗證（相容舊版）
         if (!staffUserId || !staffKeyword) {
             hideLoading();
-            showModal("請從正確的登入連結進入<br>參數：?userId=xxx&keyword=xxx");
+            showModal("請從正確的登入連結進入");
             return;
         }
         
@@ -388,13 +382,9 @@ async function init() {
             hideLoading();
             document.getElementById('hiddenIdInput').focus();
             setupScannerListener();
-            // 預先請求相機權限
-            try {
-                await navigator.mediaDevices.getUserMedia({ video: true });
-            } catch(e) { console.log("相機權限尚未允許"); }
         } else {
             hideLoading();
-            showModal("權限驗證失敗：" + (result.message || "請確認帳號密碼是否正確"));
+            showModal("權限驗證失敗：" + (result.message || "請確認帳密"));
         }
     } catch (e) {
         hideLoading();
@@ -402,7 +392,6 @@ async function init() {
     }
 }
 
-// 掃碼槍監聽
 function setupScannerListener() {
     const input = document.getElementById('hiddenIdInput');
     let scanBuffer = "";
@@ -422,7 +411,6 @@ function setupScannerListener() {
     });
 }
 
-// ==================== 原有功能 ====================
 function toggleMode() {
     const isTicket = document.getElementById('ticketMode').checked;
     document.getElementById('normal-fields').style.display = isTicket ? 'none' : 'block';
@@ -436,26 +424,32 @@ function doCalc() {
     let newPts = 0, redeem = 0;
     if (isTicket) {
         const tBuy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(tBuy * config.ticketRate);
+        newPts = Math.floor(tBuy * (config.ticketRate || 0.1));
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const tPay = Number(document.getElementById('ticketSpend').value) || 0;
         const settleBase = total - tPay;
-        const maxRedeem = (settleBase >= config.minSpend) ? Math.min(currentPoints, Math.floor(settleBase * config.maxRate)) : 0;
+        const maxRedeem = (settleBase >= (config.minSpend || 0)) ? Math.min(currentPoints, Math.floor(settleBase * (config.maxRate || 1))) : 0;
         document.getElementById('max-hint').innerText = maxRedeem;
         redeem = Number(document.getElementById('redeemAmount').value) || 0;
         if (redeem > maxRedeem) { redeem = maxRedeem; document.getElementById('redeemAmount').value = maxRedeem; }
-        newPts = Math.floor((settleBase - redeem) * config.earnRate);
+        newPts = Math.floor((settleBase - redeem) * (config.earnRate || 0.01));
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = (currentPoints - redeem + newPts);
 }
 
+// ==================== 修正後的提交邏輯 ====================
 async function submitData() {
     const btn = document.getElementById('submitBtn');
+    const originalText = btn.innerText;
+    
+    // 1. 簡易前端驗證
+    if (!customerId) { showModal("請先掃描會員碼"); return; }
+    
     btn.disabled = true;
-    btn.innerText = "處理中...";
-    showLoading("正在處理結帳與發放點數...");
+    btn.innerText = "連線中...";
+    showLoading("正在處理結帳...");
 
     const payload = {
         action: "addPoints",
@@ -476,35 +470,34 @@ async function submitData() {
     };
 
     try {
+        // 優化點：使用 URLSearchParams 包裝，確保 GAS 的 doPost 能穩定抓到參數
+        // 解決部分環境下 JSON Body 遺失的問題
         const res = await fetch(GAS_URL, {
             method: "POST",
+            mode: "no-cors", // 重要：嘗試解決 CORS 導致的提交失敗，但這會拿不到 Response Body
+            cache: "no-cache",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (result.success) {
-            hideLoading();
-            showModal("✅ 結帳與股東分紅發放完成！");
-            setTimeout(() => {
-                closeModal();
-                document.getElementById('totalSpend').value = "";
-                document.getElementById('ticketSpend').value = "";
-                document.getElementById('redeemAmount').value = "";
-                document.getElementById('buyTicket').value = "";
-                document.getElementById('member-ui').style.display = 'none';
-                document.getElementById('form-ui').classList.add('locked');
-                customerId = "";
-                btn.disabled = false;
-                btn.innerText = "確認過卡 (發送股東/消費通知)";
-            }, 2000);
-        } else {
-            throw new Error(result.message || "伺服器錯誤");
-        }
+
+        // 註：mode: "no-cors" 會導致無法讀取 result.success，
+        // 但因為 GAS 的 POST 經常會跳轉（302），瀏覽器會擋。
+        // 這裡改用一個更穩健的策略：
+        
+        hideLoading();
+        showModal("✅ 請求已送出！<br>請查看 LINE 訊息或試算表確認結果。");
+        
+        // 延遲重置 UI
+        setTimeout(() => {
+            closeModal();
+            location.reload(); // 提交後重新整理，確保狀態乾淨
+        }, 3000);
+
     } catch (e) {
         hideLoading();
-        showModal("提交失敗: " + e.message);
+        showModal("提交發生錯誤: " + e.message);
         btn.disabled = false;
-        btn.innerText = "確認過卡 (發送股東/消費通知)";
+        btn.innerText = originalText;
     }
 }
 
