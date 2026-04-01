@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>老娘領地-店員端系統</title>
+    <title>老娘領地-店員端系統_測試</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; background: #f4f7f6; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
@@ -19,24 +19,81 @@
         .locked { opacity: 0.4; pointer-events: none; }
         .member-info { background: #fff9c4; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; }
         .info-box { background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 15px; }
+        
         #customModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center; }
         .modal-content { background: white; width: 85%; max-width: 400px; padding: 25px; border-radius: 15px; text-align: center; }
         .modal-btn { background: #00b900; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-size: 16px; margin-top: 20px; cursor: pointer; width: 100%; }
+        
         #hiddenIdInput { position: absolute; left: -9999px; opacity: 0; }
+        
         #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column; }
         .loading-spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #00b900; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { color: white; margin-top: 15px; font-size: 16px; }
+        
         .member-level { display: inline-block; background: #ff9800; color: white; padding: 2px 8px; border-radius: 20px; font-size: 12px; margin-left: 8px; }
-        .camera-preview-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10001; display: none; flex-direction: column; justify-content: center; align-items: center; }
-        #cameraPreview { width: 100%; max-width: 400px; height: auto; background: #000; border-radius: 12px; }
-        .camera-controls { margin-top: 20px; display: flex; gap: 15px; }
-        .camera-btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-        .camera-btn-close { background: #ff4444; color: white; }
-        .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
-        .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
+        
+        .camera-preview-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10001;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #cameraPreview {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            background: #000;
+            border-radius: 12px;
+        }
+        .camera-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+        .camera-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .camera-btn-close {
+            background: #ff4444;
+            color: white;
+        }
+        .scan-frame {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70%;
+            height: 30%;
+            border: 3px solid #00ff00;
+            border-radius: 16px;
+            box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        .scan-status-text {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            background: rgba(0,0,0,0.6);
+            padding: 8px;
+            font-size: 14px;
+        }
     </style>
-    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body>
 
@@ -64,7 +121,7 @@
 
 <div class="card">
     <div class="header">
-        <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
+        <h2 style="margin:0;"><span id="shop-name">系統初始化...</span></h2>
         <div style="font-size:14px; color:#666; margin-top:5px;">
             夥伴：<span id="staff-name">-</span> <span id="role-text" class="role-badge">-</span>
         </div>
@@ -110,25 +167,29 @@
             結帳後總資產：<b id="after-pts">0</b> 點
         </div>
 
-        <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
+        <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡 (發送股東/消費通知)</button>
     </div>
 </div>
 
 <script>
-// ==================== 配置 ====================
+// ==================== 配置參數 ====================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec"; 
+const FETCH_TIMEOUT = 8000; // 8秒超時
+const memberCache = new Map(); // 會員快取
 
-let staff = { name: "", branch: "", role: "" };
-let config = { minSpend: 100, maxRate: 0.5, earnRate: 0.05, ticketRate: 0.03, refRate: 0.02 };
-let customerId = "", currentPoints = 0, memberLevel = "一般會員";
-
+// 全域變數
+let staff = {};
+let staffBranchCode = "";
+let config = {}, customerId = "", currentPoints = 0;
+let memberLevel = "", memberLevelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
+let isRequesting = false; // 防止重複請求
 
 // ==================== 工具函數 ====================
 function showLoading(text) {
-    const el = document.getElementById('loadingText');
-    if (text) el.innerText = text;
+    const loadingText = document.getElementById('loadingText');
+    if (text) loadingText.innerText = text;
     document.getElementById('loadingOverlay').style.display = 'flex';
 }
 function hideLoading() {
@@ -142,66 +203,108 @@ function closeModal() {
     document.getElementById('customModal').style.display = 'none';
 }
 
-// ==================== QR 解析 ====================
+// 超時請求包裝
+function fetchWithTimeout(url, options = {}, timeout = FETCH_TIMEOUT) {
+    return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('網路請求超時，請重試')), timeout)
+        )
+    ]);
+}
+
+// ==================== QR Code 解析 ====================
 function parseScannedCode(scannedText) {
-    let clean = String(scannedText).trim();
-    if (clean.indexOf("##") === 0) clean = clean.substring(2);
-    if (clean.toUpperCase().indexOf("GIFT_BY_") !== -1) return { type: "gift" };
-    if (clean.toUpperCase().indexOf("INV_") === 0) return { type: "invite" };
+    let cleanText = String(scannedText).trim();
+    if (cleanText.startsWith("##")) cleanText = cleanText.slice(2);
+    const upper = cleanText.toUpperCase();
     
-    const parts = clean.split("_");
+    if (upper.includes("GIFT_BY_")) return { type: "gift" };
+    if (upper.startsWith("INV_")) return { type: "invite" };
+    
+    const parts = cleanText.split("_");
     if (parts.length === 3 && (parts[0] === "omp" || parts[0] === "swo")) {
         return { type: "member", userId: parts[2] };
     }
-    return { type: "member", userId: clean };
-}
-
-// ==================== 查詢會員 ====================
-async function fetchMemberInfo(userId) {
-    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}`;
-    const res = await fetch(url);
-    return await res.json();
+    return { type: "member", userId: cleanText };
 }
 
 // ==================== 掃描處理 ====================
 async function onScanSuccess(scannedText) {
-    if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
+    if (scanInterval) clearInterval(scanInterval);
     await closeCamera();
-    if (navigator.vibrate) navigator.vibrate(200);
-    
-    const parsed = parseScannedCode(scannedText);
-    
-    if (parsed.type === "gift" || parsed.type === "invite") {
-        showModal(`<h3>🎁 新客招待/邀請碼</h3><p>請引導顧客完成註冊後再掃碼集點。</p>`);
-        return;
-    }
+    navigator.vibrate?.();
+    await processScannedCode(scannedText);
+}
+
+async function processScannedCode(scannedText) {
+    if (isRequesting) return;
+    isRequesting = true;
     
     try {
-        showLoading("查詢會員...");
-        const data = await fetchMemberInfo(parsed.userId);
+        const parsed = parseScannedCode(scannedText);
+        if (parsed.type !== "member") {
+            const msg = parsed.type === "gift" 
+                ? '<h3>🎁 新客招待禮</h3><p>請引導顧客註冊會員</p>'
+                : '<h3>🎉 好友邀請碼</h3><p>請引導顧客註冊</p>';
+            showModal(msg);
+            customerId = "";
+            document.getElementById('member-ui').style.display = 'none';
+            document.getElementById('form-ui').classList.add('locked');
+            return;
+        }
+
+        const userId = parsed.userId;
+        // 快取優先
+        if (memberCache.has(userId)) {
+            const data = memberCache.get(userId);
+            renderMember(data);
+            isRequesting = false;
+            return;
+        }
+
+        showLoading("查詢會員中...");
+        const res = await fetchWithTimeout(`${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&branch=${encodeURIComponent(staff.branch || '')}`);
+        const data = await res.json();
         hideLoading();
-        
-        if (data.success && data.member) {
-            customerId = data.member.userId;
-            currentPoints = data.member.points || 0;
-            memberLevel = data.member.level || "一般會員";
-            
-            document.getElementById('member-ui').style.display = 'block';
-            document.getElementById('form-ui').classList.remove('locked');
-            document.getElementById('cus-name').innerText = data.member.name;
-            document.getElementById('cus-pts').innerText = currentPoints;
-            document.getElementById('cus-total').innerText = data.member.totalSpend || 0;
-            document.getElementById('member-level').innerText = memberLevel;
-            
-            document.getElementById('totalSpend').focus();
-            doCalc();
+
+        if (data.isMember) {
+            memberCache.set(userId, data); // 快取儲存
+            renderMember(data);
         } else {
-            showModal("⚠️ 查無此會員編號！");
+            showModal("<p style='color:red'>⚠️ 查無此會員編號</p>");
         }
     } catch (err) {
         hideLoading();
-        showModal("查詢失敗：" + err.message);
+        showModal(`錯誤：${err.message}`);
+        console.error(err);
+    } finally {
+        isRequesting = false;
     }
+}
+
+function renderMember(data) {
+    customerId = data.userId;
+    document.getElementById('member-ui').style.display = 'block';
+    document.getElementById('form-ui').classList.remove('locked');
+    document.getElementById('cus-name').innerText = data.userName;
+    document.getElementById('cus-pts').innerText = data.points;
+    document.getElementById('cus-total').innerText = data.totalSpend || 0;
+    
+    currentPoints = +data.points;
+    config = data.config;
+    memberLevel = data.memberLevel || "一般會員";
+    memberLevelRate = data.levelRate || 1;
+    
+    const levelEl = document.getElementById('member-level');
+    levelEl.innerText = memberLevel;
+    levelEl.style.background = memberLevel === "白金會員" ? "#9c27b0" 
+                           : memberLevel === "黃金會員" ? "#ffc107" 
+                           : "#ff9800";
+    levelEl.style.color = memberLevel === "黃金會員" ? "#333" : "#fff";
+    
+    document.getElementById('totalSpend').focus();
+    doCalc();
 }
 
 // ==================== 相機 ====================
@@ -215,7 +318,7 @@ async function openCamera() {
         document.getElementById('cameraContainer').style.display = 'flex';
         startScanning();
     } catch (err) {
-        showModal("無法開啟相機，請檢查權限\n" + err.message);
+        showModal("相機開啟失敗，請使用掃碼槍");
         document.getElementById('hiddenIdInput').focus();
     }
 }
@@ -224,77 +327,100 @@ function startScanning() {
     const video = document.getElementById('cameraPreview');
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
-    if (scanInterval) clearInterval(scanInterval);
+    
     scanInterval = setInterval(() => {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
-            if (code) {
-                clearInterval(scanInterval);
-                scanInterval = null;
-                onScanSuccess(code.data);
-            }
-        }
-    }, 200);
+        if (video.readyState < 2) return;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const code = jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data, canvas.width, canvas.height);
+        if (code) onScanSuccess(code.data);
+    }, 160);
 }
 
 async function closeCamera() {
-    if (scanInterval) clearInterval(scanInterval);
-    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    clearInterval(scanInterval);
+    cameraStream?.getTracks().forEach(t => t.stop());
     cameraStream = null;
+    document.getElementById('cameraPreview').srcObject = null;
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入（直接從 URL 帶入店員資料）====================
-function init() {
-    const url = new URL(window.location.href);
-    const name = url.searchParams.get('name');
-    const branch = url.searchParams.get('branch');
-    const role = url.searchParams.get('role');
-    
-    if (name && branch) {
-        staff = { name, branch, role: role || "店員" };
-        document.getElementById('staff-name').innerText = staff.name;
-        document.getElementById('role-text').innerText = staff.role;
-        document.getElementById('shop-name').innerText = staff.branch;
+// ==================== 登入初始化 ====================
+async function init() {
+    try {
+        const params = new URLSearchParams(location.search);
+        const userId = params.get('userId');
+        const keyword = params.get('keyword');
+        const branchCode = params.get('branchCode') || '';
+        
+        // 參數直接登入
+        const name = params.get('name');
+        const branch = params.get('branch');
+        const role = params.get('role');
+        
+        if (name && branch) {
+            staff = { name, branch, role: role || "店員", success: true };
+            renderStaff();
+            setupScannerListener();
+            return;
+        }
+
+        if (!userId || !keyword) {
+            showModal("請從正確登入連結進入");
+            return;
+        }
+
+        showLoading("驗證權限中...");
+        const res = await fetchWithTimeout(`${GAS_URL}?action=staffLogin&userId=${userId}&keyword=${keyword}&branchCode=${branchCode}`);
+        const result = await res.json();
         hideLoading();
-        document.getElementById('hiddenIdInput').focus();
-        setupScannerListener();
-    } else {
-        // 如果沒有參數，顯示錯誤但不鎖死（仍可掃碼）
-        console.warn("缺少登入參數，請從登入頁進入");
-        document.getElementById('staff-name').innerText = "請重新登入";
-        document.getElementById('role-text').innerText = "訪客";
+
+        if (result.success) {
+            staff = result;
+            renderStaff();
+            setupScannerListener();
+        } else {
+            showModal("登入失敗：" + result.message);
+        }
+    } catch (e) {
         hideLoading();
-        // 仍允許掃碼測試（方便除錯）
-        setupScannerListener();
+        showModal("啟動失敗：" + e.message);
     }
 }
 
+function renderStaff() {
+    document.getElementById('shop-name').innerText = staff.branch;
+    document.getElementById('staff-name').innerText = staff.name;
+    document.getElementById('role-text').innerText = staff.role;
+    hideLoading();
+    document.getElementById('hiddenIdInput').focus();
+}
+
+// 掃碼槍監聽
 function setupScannerListener() {
     const input = document.getElementById('hiddenIdInput');
-    let buffer = "", timer = null;
-    input.addEventListener('keypress', (e) => {
+    let buf = '';
+    let timer;
+    
+    input.addEventListener('keypress', e => {
         if (e.key === 'Enter') {
-            if (buffer) onScanSuccess(buffer);
-            buffer = "";
-            if (timer) clearTimeout(timer);
+            processScannedCode(buf);
+            buf = '';
+            clearTimeout(timer);
         } else {
-            buffer += e.key;
-            if (timer) clearTimeout(timer);
+            buf += e.key;
+            clearTimeout(timer);
             timer = setTimeout(() => {
-                if (buffer) onScanSuccess(buffer);
-                buffer = "";
-            }, 150);
+                processScannedCode(buf);
+                buf = '';
+            }, 140);
         }
-        input.value = "";
+        input.value = '';
     });
 }
 
-// ==================== 計算 ====================
+// ==================== 計算 & 提交 ====================
 function toggleMode() {
     const isTicket = document.getElementById('ticketMode').checked;
     document.getElementById('normal-fields').style.display = isTicket ? 'none' : 'block';
@@ -303,75 +429,68 @@ function toggleMode() {
 }
 
 function doCalc() {
+    if (!config?.earnRate) return;
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
+
     if (isTicket) {
-        const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate);
+        const buy = +document.getElementById('buyTicket').value || 0;
+        newPts = Math.floor(buy * (config.ticketRate || 0.1));
     } else {
-        const total = Number(document.getElementById('totalSpend').value) || 0;
-        const ticket = Number(document.getElementById('ticketSpend').value) || 0;
-        const base = total - ticket;
-        const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
-        document.getElementById('max-hint').innerText = max;
-        redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
+        const total = +document.getElementById('totalSpend').value || 0;
+        const ticket = +document.getElementById('ticketSpend').value || 0;
+        const base = Math.max(0, total - ticket);
+        const maxR = base >= (config.minSpend||0) ? Math.min(currentPoints, Math.floor(base * (config.maxRate||1))) : 0;
+        document.getElementById('max-hint').innerText = maxR;
+        
+        redeem = Math.min(+document.getElementById('redeemAmount').value || 0, maxR);
         document.getElementById('redeemAmount').value = redeem;
         newPts = Math.floor((base - redeem) * config.earnRate);
     }
+
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== 提交 ====================
 async function submitData() {
-    if (!customerId) { showModal("請先掃描會員碼"); return; }
+    if (!customerId) return showModal("請先掃描會員");
+    if (isRequesting) return;
     
     const btn = document.getElementById('submitBtn');
+    const ori = btn.innerText;
     btn.disabled = true;
-    btn.innerText = "處理中...";
-    showLoading("結帳中...");
-    
-    const payload = {
-        action: "addPoints",
-        isTicketMode: document.getElementById('ticketMode').checked,
-        customerId: customerId,
-        branch: staff.branch,
-        staffName: staff.name,
-        staffRole: staff.role,
-        totalSpend: Number(document.getElementById('totalSpend').value) || 0,
-        ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
-        redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
-        buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-        earnRate: config.earnRate,
-        ticketRate: config.ticketRate,
-        refRate: config.refRate,
-        memberLevel: memberLevel,
-        memberLevelRate: 1
-    };
+    isRequesting = true;
     
     try {
-        const res = await fetch(GAS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
+        showLoading("處理結帳中...");
+        const payload = {
+            action: "addPoints",
+            isTicketMode: document.getElementById('ticketMode').checked,
+            customerId, branch: staff.branch, staffName: staff.name, staffRole: staff.role,
+            totalSpend: +document.getElementById('totalSpend').value,
+            ticketSpend: +document.getElementById('ticketSpend').value,
+            redeemAmount: +document.getElementById('redeemAmount').value,
+            buyTicket: +document.getElementById('buyTicket').value,
+            earnRate: config.earnRate, ticketRate: config.ticketRate,
+            memberLevel, memberLevelRate
+        };
+
+        await fetchWithTimeout(GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await res.json();
+
         hideLoading();
-        
-        if (result === "SUCCESS" || result.success) {
-            showModal("✅ 結帳完成！");
-            setTimeout(() => {
-                closeModal();
-                location.reload();
-            }, 2000);
-        } else {
-            throw new Error(result.message || "伺服器錯誤");
-        }
+        showModal("✅ 結帳完成！3 秒後重整");
+        setTimeout(() => location.reload(), 3000);
     } catch (e) {
         hideLoading();
         showModal("提交失敗：" + e.message);
         btn.disabled = false;
-        btn.innerText = "確認過卡";
+        btn.innerText = ori;
+    } finally {
+        isRequesting = false;
     }
 }
 
