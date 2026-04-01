@@ -201,8 +201,33 @@ function showToast(msg) { let t = document.getElementById('toast'); t.innerText 
 function openSideMenu() { document.getElementById('sideMenu').classList.add('open'); document.getElementById('sideMenuOverlay').classList.add('show'); }
 function closeSideMenu() { document.getElementById('sideMenu').classList.remove('open'); document.getElementById('sideMenuOverlay').classList.remove('show'); }
 
-function openRightsModal(e) { if(e) e.stopPropagation(); pendingCheckboxId = 'agreeRights'; openModal(`<h3 style="color:var(--primary); text-align:center;">📋 會員權益</h3><p>◆ 點數價值： $1 點 = NT$1 元。</p><p>◆ 本人集點： 以「實付金額（折抵/折扣後）」之 5% 計算。<br>效期：取得日起 12 個月。</p><p>◆ 朋友回饋： 以朋友消費實付額之 2% 計算。<br>效期：取得日起 6 個月。</p><p>◆ 生效時間： 採 隔日生效制（今日取得，明日 00:00 後方可使用）。</p><p>◆ 購買餐券： 提撥 3% 點數（該筆交易不可使用點數折抵）。</p><p>◆ 使用餐券消費： 扣除餐券面額後之剩餘實付金額，提撥 5% 點數。</p><p>◆ 特殊日期折抵： 春節、母親節或特殊活動檔期，暫停折抵功能，僅限集點。</p><p>◆ 特殊活動檔期 (如鍋友日、周年慶)：本人集點 3%，朋友回饋 1%。</p>`); }
-function openLegalModal(e) { if(e) e.stopPropagation(); pendingCheckboxId = 'agreeLegal'; openModal(`<h3 style="color:var(--primary); text-align:center;">⚖️ 法務免責及管控聲明</h3><p>◆ 非現金化： 點數不具現金價值，不可要求兌換現金 or 轉讓。</p><p>◆ 終止權： 店家保有修改、暫停或終止活動之權利。</p><p>◆ 營運調整： 若因營運調整或不可抗力因素，點數自動失效，不得要求賠償。</p><p>◆ 最終解釋權：本公司保有活動最終解釋權。</p><p>◆ 誠信原則監測： 系統會監測異常頻繁集點或疑似虛假推薦，店家有權直接凍結帳號並清空點數。</p>`); }
+function openRightsModal(e) { if(e) e.stopPropagation(); pendingCheckboxId = 'agreeRights'; openModal(`<h3 style="color:var(--primary); text-align:center;">📋 會員權益</h3><p>
+<p>◆ <b>點數價值</b>：1 點 = NT$1 元。</p>
+<p>◆ <b>個人集點回饋</b>：
+    <br>· 以「實付金額（折抵/折扣後）」之 5% 計算。
+    <br>· 點數效期：自取得日起算 12 個月。</p>
+<p>◆ <b>推薦分紅回饋</b>：
+    <br>· 以被推薦人「實付金額」之 2% 計算。
+    <br>· 點數效期：自取得日起算 6 個月。</p>
+    <br>· 資格限制：若推薦人超過 <b>90 天</b>無店內消費紀錄，系統將暫停發放該筆推薦回饋點數。</p>
+<p>◆ <b>生效時間</b>：點數於取得日之「隔日」生效（即明日 00:00 後方可使用）。</p>
+<p>◆ <b>購買餐券規章</b>：
+    <br>· 依購買金額提撥 1% 點數回饋。
+    <br>· 注意：購買餐券之交易，不可同時使用點數折抵。</p>
+<p>◆ <b>使用餐券消費</b>：
+    <br>· 結帳金額扣除餐券面額後之「剩餘實付額」，提撥 2% 點數。</p>
+<p>◆ <b>折抵功能限制</b>：
+    <br>· 春節期間、母親節或店內特殊活動檔期，暫停點數折抵功能，僅開放累積集點。</p>
+<p>◆ <b>未盡事宜說明</b>：未盡事宜依店內或系統最新公告為主。</p>
+`); }
+function openLegalModal(e) { if(e) e.stopPropagation(); pendingCheckboxId = 'agreeLegal'; openModal(`<h3 style="color:var(--primary); text-align:center;">⚖️ 法務免責及管控聲明</h3><p>
+<p>◆ <b>禁止轉讓</b>：點數不開放轉讓他人或合併帳號使用，僅限於本平台指定之店家進行消費折抵。</p>
+<p>◆ <b>非現金資產</b>：本平台發放之點數屬無償贈與之紅利，不具貨幣價值，不得要求兌換現金。</p>
+<p>◆ <b>活動終止權</b>：本平台及所屬店家保有隨時修改、暫停或終止點數贈與及折抵活動之權利，相關異動將以官方公告為準。</p>
+<p>◆ <b>營運調整權</b>：若因系統升級、營運政策調整、店家歇業或其他不可抗力之因素（如自然災害、系統駭客攻擊等），導致點數失效或歸零，會員不得要求補發、折現或任何形式之損害賠償。</p>
+<p>◆ <b>誠信原則</b>：為維護會員公平權益，系統將自動監測並判別異常頻繁集點、疑似虛假推薦、規避系統邏輯或任何違反誠信原則之行為。若經系統偵測或查證屬實，店家有權逕行凍結帳號、作廢異常點數，並取消該用戶之會員資格，且不另行通知。</p>
+<p>◆ <b>最終解釋權</b>：本公司保有活動最終解釋權。</p>
+`); }
 function openRightsDetail() { pendingCheckboxId = null; openRightsModal(); }
 function openLegalDetail() { pendingCheckboxId = null; openLegalModal(); }
 
@@ -375,7 +400,7 @@ async function doRegister() {
         
         if (result.success) {
             document.getElementById('loading').style.display = 'none';
-            openModal(`<div class="welcome-card"><h2>🎉 註冊成功！</h2><p>歡迎加入老娘的一點心意🍲🍰<br><br>這是老娘留給你的偏心。<br>日子不一定天天完美，但一定要有一點甜 💕</p><div style="margin-top: 20px;">3秒後自動進入會員頁面...</div></div>`);
+            openModal(`<div class="welcome-card"><h2>🎉 註冊成功！</h2><p>歡迎加入老娘的一點心意🍲🍰<br><br>這是老娘留給你的偏心。<br>日子不一定天天完美<br>但一定要有一點甜 💕</p><div style="margin-top: 20px;">3秒後自動進入會員頁面...</div></div>`);
             setTimeout(() => { closeModal(); location.reload(); }, 3000);
         } else {
             document.getElementById('loading').style.display = 'none';
