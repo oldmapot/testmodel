@@ -224,21 +224,35 @@ function startScanning() {
     const video = document.getElementById('cameraPreview');
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
+    const statusText = document.getElementById('scanStatusText');
+
     if (scanInterval) clearInterval(scanInterval);
+    
     scanInterval = setInterval(() => {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imgData.data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
+            // 嘗試解析 QR Code
+            const code = jsQR(imgData.data, canvas.width, canvas.height, {
+                inversionAttempts: "dontInvert",
+            });
+
             if (code) {
+                console.log("找到 Code:", code.data);
+                statusText.innerText = "✅ 掃描成功！讀取中...";
+                statusText.style.background = "rgba(0,185,0,0.8)";
+                
                 clearInterval(scanInterval);
                 scanInterval = null;
                 onScanSuccess(code.data);
+            } else {
+                statusText.innerText = "正在對焦 QR Code...";
             }
         }
-    }, 200);
+    }, 300); // 稍微放慢一點點，讓手機有時間對焦
 }
 
 async function closeCamera() {
