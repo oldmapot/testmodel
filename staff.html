@@ -173,10 +173,15 @@ async function onScanSuccess(scannedText) {
     console.log("解析結果:", parsed);
 
     try {
-        showLoading("查詢會員中...");
-        // 🔥 修正：傳入 branch 參數，讓後端正確判斷品牌
-        const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}`;
-        const res = await fetch(url);
+        showLoading("連線中...");
+        // 確保網址最後沒有多餘空格，並加入時間戳記防止快取
+        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
+        
+        const res = await fetch(finalUrl, { 
+            method: "GET",
+            mode: "cors" // 強制開啟跨網域模式
+        });
+        
         const data = await res.json();
         hideLoading();
         
@@ -382,61 +387,7 @@ function doCalc() {
 }
 
 // ==================== 提交 ====================
-async function submitData() {
-    if (!staff.name || !staff.branch) { 
-        showModal("❌ 系統偵測不到店員資料，請重新登入"); 
-        return; 
-    }
-    if (!customerId) { showModal("請先掃描會員碼"); return; }
-    
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = true;
-    btn.innerText = "處理中...";
-    showLoading("結帳中...");
-    
-    const payload = {
-        action: "addPoints",
-        isTicketMode: document.getElementById('ticketMode').checked,
-        customerId: customerId,
-        branch: staff.branch,
-        staffName: staff.name,
-        staffRole: staff.role,
-        totalSpend: Number(document.getElementById('totalSpend').value) || 0,
-        ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
-        redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
-        buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-        earnRate: config.earnRate,
-        ticketRate: config.ticketRate,
-        refRate: config.refRate,
-        memberLevel: memberLevel,
-        memberLevelRate: 1
-    };
-    
-    try {
-        const res = await fetch(GAS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        hideLoading();
-        
-        if (result === "SUCCESS" || result.success) {
-            showModal("✅ 結帳完成！");
-            setTimeout(() => {
-                closeModal();
-                location.reload();
-            }, 2000);
-        } else {
-            throw new Error(result.message || "伺服器錯誤");
-        }
-    } catch (e) {
-        hideLoading();
-        showModal("提交失敗：" + e.message);
-        btn.disabled = false;
-        btn.innerText = "確認過卡";
-    }
-}
+submitData
 
 // 啟動
 init();
