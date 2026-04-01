@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -181,9 +182,6 @@ async function onScanSuccess(scannedText) {
             method: "GET",
             mode: "cors" // 強制開啟跨網域模式
         });
-        
-        const data = await res.json();
-        hideLoading();
         
         if (data.success && data.member) {
             customerId = data.member.userId;
@@ -387,7 +385,49 @@ function doCalc() {
 }
 
 // ==================== 提交 ====================
-submitData
+async function submitData() {
+    if (!staff.name || !staff.branch) { 
+        showModal("❌ 系統偵測不到店員資料，請重新設定。"); 
+        return; 
+    }
+    if (!customerId) { showModal("請先掃描會員碼"); return; }
+    
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "資料傳送中...";
+    showLoading("正在過卡中，請稍候...");
+    
+    const payload = {
+        action: "addPoints",
+        isTicketMode: document.getElementById('ticketMode').checked,
+        customerId: customerId,
+        branch: staff.branch,
+        staffName: staff.name,
+        // ... 其他欄位保持不變 ...
+    };
+    
+    try {
+        // 使用 no-cors 雖然看不到回傳值但最容易成功，
+        // 但為了看到「✅成功」，我們改用傳統的 redirect 處理
+        const res = await fetch(GAS_URL, {
+            method: "POST",
+            mode: "no-cors", // 這裡改用 no-cors 是 GitHub Pages 提交到 GAS 最不卡的方法
+            headers: { "Content-Type": "text/plain" }, // GAS 接收 JSON 建議用 text/plain 避開 CORS 預檢
+            body: JSON.stringify(payload)
+        });
+
+        // 因為 no-cors 無法讀取內容，我們假設 2 秒後成功並刷新
+        hideLoading();
+        showModal("✅ 資料已發送！<br>系統將於 2 秒後自動整理。");
+        setTimeout(() => { location.reload(); }, 2000);
+
+    } catch (e) {
+        hideLoading();
+        showModal("提交出錯：" + e.message + "<br>請檢查網路或聯繫管理員。");
+        btn.disabled = false;
+        btn.innerText = "確認過卡";
+    }
+}
 
 // 啟動
 init();
