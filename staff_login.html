@@ -134,6 +134,17 @@
             text-align: center;
         }
         
+        .success-message {
+            background: #e5ffe5;
+            color: #2e7d32;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+        }
+        
         .footer-note {
             margin-top: 28px;
             font-size: 12px;
@@ -155,7 +166,6 @@
             color: #8b0000;
         }
         
-        /* 載入中效果 */
         .spinner {
             display: inline-block;
             width: 18px;
@@ -196,11 +206,13 @@
         </form>
         
         <div id="errorMsg" class="error-message"></div>
+        <div id="successMsg" class="success-message"></div>
         
         <div class="demo-hint">
             <strong>💡 提示：</strong><br>
-            • 帳號為店員的 LINE User ID<br>
-            • 密碼由管理員設定（在「店員管理」工作表中）<br>
+            • 帳號為店員的 LINE User ID（B欄）<br>
+            • 密碼由管理員設定（E欄）<br>
+            • 帳號需為「啟用狀態」（J欄 = 是）<br>
             • 忘記密碼請聯絡系統管理員
         </div>
         
@@ -210,7 +222,7 @@
     </div>
 
     <script>
-        // 登入頁面 - 跳轉到 staff.html 並帶入參數
+        // GAS 後端網址（請確認與 staff.html 一致）
         const GAS_URL = "https://script.google.com/macros/s/AKfycbxrlYGoxOuTUJ9y9YQreRRNpSYly2c7yGuOw0ppPmfJJL7xLo6RLZDBF2htCaHwnB6Y/exec";
         
         async function handleLogin(event) {
@@ -220,6 +232,7 @@
             const keyword = document.getElementById('keyword').value.trim();
             const loginBtn = document.getElementById('loginBtn');
             const errorMsgDiv = document.getElementById('errorMsg');
+            const successMsgDiv = document.getElementById('successMsg');
             
             if (!userId || !keyword) {
                 showError('請輸入完整的帳號和密碼');
@@ -230,26 +243,32 @@
             loginBtn.disabled = true;
             loginBtn.innerHTML = '<span class="spinner"></span> 驗證中...';
             errorMsgDiv.style.display = 'none';
+            successMsgDiv.style.display = 'none';
             
             try {
-                // 先呼叫 GAS 驗證店員身分
+                // 呼叫 GAS 驗證店員身分
+                // 後端會從「店員管理」工作表讀取 B欄(LINE_UserID) 和 E欄(登入密碼)
                 const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}`;
                 const response = await fetch(verifyUrl);
                 const result = await response.json();
                 
                 if (result.success) {
-                    // 驗證成功，跳轉到 staff.html 並帶入參數
-                    const staffPageUrl = `staff.html?userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}`;
+                    // 驗證成功，顯示成功訊息
+                    successMsgDiv.textContent = `✅ 歡迎回來，${result.name}！即將進入系統...`;
+                    successMsgDiv.style.display = 'block';
                     
-                    // 顯示成功訊息
                     loginBtn.innerHTML = '✅ 驗證成功，進入系統...';
+                    
+                    // 跳轉到 staff.html 並帶入參數
+                    const staffPageUrl = `staff.html?userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&branch=${encodeURIComponent(result.branch || '')}&role=${encodeURIComponent(result.role || '')}`;
                     
                     setTimeout(() => {
                         window.location.href = staffPageUrl;
-                    }, 500);
+                    }, 800);
+                    
                 } else {
                     // 驗證失敗
-                    showError('帳號或密碼錯誤，請重新輸入');
+                    showError(result.message || '帳號或密碼錯誤，請重新輸入');
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '登入系統';
                 }
@@ -267,7 +286,6 @@
             errorMsgDiv.textContent = message;
             errorMsgDiv.style.display = 'block';
             
-            // 5秒後自動隱藏
             setTimeout(() => {
                 errorMsgDiv.style.display = 'none';
             }, 5000);
