@@ -31,15 +31,19 @@
         .side-menu-item { display: block; width: 100%; padding: 18px 24px; background: none; border: none; text-align: left; font-size: 18px; color: var(--text); cursor: pointer; border-bottom: 1px solid #f0f0f0; font-weight: bold; }
         .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; }
         .side-menu-overlay.show { display: block; }
-/* 只让 法務免責及管控聲明 变小、变浅、靠下 */
-.side-menu-item[onclick="openLegalDetail(); closeSideMenu()"] {
+/* 只針對「法務免責」做樣式 */
+.side-menu-item--legal {
+    /* 靠下：用 margin-top auto 讓它永遠在最底 */
     margin-top: auto !important;
-    padding-top: 12px !important;
-    padding-bottom: 12px !important;
-    font-size: 15px !important;
-    color: #999 !important;
+    /* 字體小一號 */
+    font-size: 14px !important;
+    /* 顏色變淺 */
+    color: #a0a0a0 !important;
+    /* 字重變細 */
     font-weight: normal !important;
+    /* 可選：加一點上邊界隔開（更不顯眼） */
     border-top: 1px solid #f0f0f0 !important;
+    padding-top: 12px !important;
 }
         .asset-card { 
             background: #fff; border-radius: 15px; padding: 4vw 5vw; margin: 20px 20px 10px; 
@@ -109,7 +113,7 @@
             <button class="side-menu-item" onclick="openPointHistory(); closeSideMenu()">📜 點數明細</button>
             <button class="side-menu-item" onclick="openShopInfo(); closeSideMenu()">🏪 店面資訊</button>
             <button class="side-menu-item" onclick="openRightsDetail(); closeSideMenu()">📋 會員權益</button>
-            <button class="side-menu-item" onclick="openLegalDetail(); closeSideMenu()">⚖️ 法務免責及管控聲明</button>
+            <button class="side-menu-item side-menu-item--legal" onclick="openLegalDetail(); closeSideMenu()">⚖️ 法務免責及管控聲明</button>
         </div>
     </div>
     
