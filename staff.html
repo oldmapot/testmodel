@@ -343,7 +343,16 @@ function doCalc() {
 
 // ==================== 提交 ====================
 async function submitData() {
-    if (!customerId) { showModal("請先掃描會員碼"); return; }
+    alert("submitData 被呼叫了！");
+    
+    if (!staff.name || !staff.branch) { 
+        showModal("❌ 系統偵測不到店員資料，請重新登入"); 
+        return; 
+    }
+    if (!customerId) { 
+        showModal("請先掃描會員碼"); 
+        return; 
+    }
     
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -364,33 +373,45 @@ async function submitData() {
         earnRate: config.earnRate,
         ticketRate: config.ticketRate,
         refRate: config.refRate,
-        memberLevel: memberLevel
+        memberLevel: memberLevel,
+        memberLevelRate: 1
     };
     
+    console.log("發送 payload:", payload);
+    
     try {
-        // 🔥 修正：直接傳送 JSON 字串，並使用 no-cors 確保發送成功
-        await fetch(GAS_URL, {
-            method: "POST",
-            mode: "no-cors", 
-            headers: { 'Content-Type': 'text/plain' }, // 避開 CORS 檢查
-            body: JSON.stringify(payload)
-        });
-
-        // 因為 no-cors 模式下無法讀取 SUCCESS，我們直接認定成功（因為 testSubmit 過了）
-        hideLoading();
-        showModal("✅ 結帳完成！<br>資料已同步至雲端帳本。");
+        const formData = new URLSearchParams();
+        formData.append('postData', JSON.stringify(payload));
         
-        setTimeout(() => {
-            location.reload();
-        }, 2000);
-
+        const res = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: formData.toString()
+        });
+        
+        const result = await res.text();
+        console.log("伺服器回應:", result);
+        
+        hideLoading();
+        
+        if (result === "SUCCESS") {
+            showModal("✅ 結帳完成！");
+            setTimeout(() => {
+                closeModal();
+                location.reload();
+            }, 2000);
+        } else {
+            throw new Error(result || "伺服器錯誤");
+        }
     } catch (e) {
         hideLoading();
+        console.error("提交錯誤:", e);
         showModal("提交失敗：" + e.message);
         btn.disabled = false;
         btn.innerText = "確認過卡";
     }
 }
+
 // 啟動
 init();
 </script>
