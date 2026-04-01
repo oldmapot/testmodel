@@ -31,30 +31,27 @@
         .side-menu-item { display: block; width: 100%; padding: 18px 24px; background: none; border: none; text-align: left; font-size: 18px; color: var(--text); cursor: pointer; border-bottom: 1px solid #f0f0f0; font-weight: bold; }
         .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; }
         .side-menu-overlay.show { display: block; }
-/* 只針對「法務免責及管控聲明」做樣式，其他完全不動 */
+/* 讓側欄用flex布局，只改法務按鈕 */
 .side-menu-items {
-  /* 讓父元素可以用flex推到底部，不影響其他按鈕 */
-  display: flex !important;
-  flex-direction: column !important;
-  height: 100% !important;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px); /* 減去header高度，避免超出 */
+  padding-bottom: 20px; /* 底部留間距，不貼邊 */
 }
 
-/* 只改法務這一個按鈕 */
+/* 只針對法務免責（最後一個按鈕） */
 .side-menu-item:last-child {
-  /* 移到最最底部 */
   margin-top: auto !important;
-  /* 字體小一號 */
-  font-size: 14px !important;
-  /* 顏色變淺 */
-  color: #999 !important;
-  /* 字重變細，不顯眼 */
-  font-weight: normal !important;
-  /* 置中 */
   text-align: center !important;
-  /* 上方加一條淺線隔開，更不顯眼 */
-  border-top: 1px solid #f0f0f0 !important;
-  padding-top: 16px !important;
-  padding-bottom: 16px !important;
+  font-size: 14px !important;
+  color: #999 !important;
+  font-weight: normal !important;
+  border: none !important;
+  padding: 12px 0 !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  width: auto !important;
+  display: inline-block !important;
 }
         .asset-card { 
             background: #fff; border-radius: 15px; padding: 4vw 5vw; margin: 20px 20px 10px; 
