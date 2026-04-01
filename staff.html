@@ -66,7 +66,7 @@
     <div class="header">
         <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
         <div style="font-size:14px; color:#666; margin-top:5px;">
-            夥伴：<span id="staff-name">-</span> <span id="role-text" class="role-badge">店員</span>
+            夥伴：<span id="staff-name">-</span> <span id="role-text" class="role-badge">-</span>
         </div>
     </div>
 
@@ -248,7 +248,7 @@ async function closeCamera() {
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// ==================== 登入 ====================
+// ==================== 登入（直接從 URL 帶入店員資料）====================
 function init() {
     const url = new URL(window.location.href);
     const name = url.searchParams.get('name');
@@ -264,7 +264,13 @@ function init() {
         document.getElementById('hiddenIdInput').focus();
         setupScannerListener();
     } else {
-        showModal("請從正確的登入頁面進入");
+        // 如果沒有參數，顯示錯誤但不鎖死（仍可掃碼）
+        console.warn("缺少登入參數，請從登入頁進入");
+        document.getElementById('staff-name').innerText = "請重新登入";
+        document.getElementById('role-text').innerText = "訪客";
+        hideLoading();
+        // 仍允許掃碼測試（方便除錯）
+        setupScannerListener();
     }
 }
 
