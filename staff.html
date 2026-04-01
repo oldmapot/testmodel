@@ -377,78 +377,81 @@ function doCalc() {
 }
 
 // ==================== ✅ 修好：提交函數 ====================
-// ==================== ✅ 最穩定提交版本（專為 GAS 寫） ====================
+// ==================== ✅ 手機專用：錯誤直接顯示在畫面 ====================
 async function submitData() {
-  // 基本檢查
-  if (!customerId) {
-    showModal("請先掃描會員條碼！");
-    return;
-  }
-
-  const isTicketMode = document.getElementById('ticketMode').checked;
-
-  let totalSpend    = Number(document.getElementById('totalSpend').value) || 0;
-  let ticketSpend   = Number(document.getElementById('ticketSpend').value) || 0;
-  let redeemAmount  = Number(document.getElementById('redeemAmount').value) || 0;
-  let buyTicket     = Number(document.getElementById('buyTicket').value) || 0;
-
-  // 防呆：至少要有金額
-  if (!isTicketMode && totalSpend <= 0) {
-    showModal("請輸入消費金額！");
-    return;
-  }
-  if (isTicketMode && buyTicket <= 0) {
-    showModal("請輸入購買餐券金額！");
-    return;
-  }
-
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  btn.textContent = "處理中...";
-  showLoading("老娘正在處理這筆單...");
-
   try {
-    // 🔥 關鍵：用 GET 參數提交，100% 兼容 GAS
-    const params = new URLSearchParams();
-    params.append("action", "addPoints");
-    params.append("userId", customerId);
-    params.append("staffName", staff.name || "");
-    params.append("branch", staff.branch || "");
-    params.append("isTicketMode", isTicketMode ? "Y" : "N");
-    params.append("totalSpend", totalSpend);
-    params.append("ticketSpend", ticketSpend);
-    params.append("redeemAmount", redeemAmount);
-    params.append("buyTicket", buyTicket);
-    params.append("t", new Date().getTime()); // 防快取
+    // 基本檢查
+    if (!customerId) {
+      alert("❌ 請先掃描會員條碼！");
+      return;
+    }
 
-    const url = GAS_URL + "?" + params.toString();
+    const isTicketMode = document.getElementById('ticketMode').checked;
+    let totalSpend    = Number(document.getElementById('totalSpend').value) || 0;
+    let ticketSpend   = Number(document.getElementById('ticketSpend').value) || 0;
+    let redeemAmount  = Number(document.getElementById('redeemAmount').value) || 0;
+    let buyTicket     = Number(document.getElementById('buyTicket').value) || 0;
 
-    const res = await fetch(url, {
-      method: "GET",
-      mode: "cors",
+    if (!isTicketMode && totalSpend <= 0) {
+      alert("❌ 請輸入消費金額！");
+      return;
+    }
+    if (isTicketMode && buyTicket <= 0) {
+      alert("❌ 請輸入購買餐券金額！");
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = "處理中...";
+    showLoading("提交中...");
+
+    // 🔥 關鍵：改用 form 格式提交，最兼容 GAS
+    const formData = new FormData();
+    formData.append('action', 'addPoints');
+    formData.append('customerId', customerId);
+    formData.append('branch', staff.branch || '');
+    formData.append('staffName', staff.name || '');
+    formData.append('isTicketMode', isTicketMode ? 'Y' : 'N');
+    formData.append('totalSpend', totalSpend);
+    formData.append('ticketSpend', ticketSpend);
+    formData.append('redeemAmount', redeemAmount);
+    formData.append('buyTicket', buyTicket);
+
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: formData,
+      mode: 'cors',
     });
 
     const text = await res.text();
-    console.log("GAS 回傳：", text); // 你可以打 F12 看這行
-
     hideLoading();
+    btn.disabled = false;
+    btn.textContent = "確認過卡";
 
-    if (text.includes("成功") || text.includes("SUCCESS") || text.includes("ok")) {
-      showModal("✅ 提交成功！\n\n本次消費已記入會員帳戶。");
-      setTimeout(() => {
-        closeModal();
-        location.reload();
-      }, 2000);
-    } else {
-      showModal("❌ 提交失敗！<br>後端回傳：" + text.slice(0, 100));
+    // 直接顯示後端回傳
+    alert(`
+✅ 提交結果：
+狀態：${res.status} ${res.statusText}
+回傳：${text.slice(0, 200)}
+    `);
+
+    if (text.includes('SUCCESS') || text.includes('成功')) {
+      alert("✅ 結帳成功！");
+      setTimeout(() => location.reload(), 1500);
     }
 
   } catch (err) {
     hideLoading();
-    showModal("❌ 網路錯誤：" + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "確認過卡";
+    document.getElementById('submitBtn').disabled = false;
+    document.getElementById('submitBtn').textContent = "確認過卡";
+
+    // 🔥 直接把錯誤彈出來！
+    alert(`
+❌ 提交失敗（手機直接看）：
+類型：${err.name}
+訊息：${err.message}
+    `);
   }
 }
 // 啟動
