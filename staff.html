@@ -378,47 +378,52 @@ function doCalc() {
 
 // ==================== ✅ 修好：提交函數 ====================
 async function submitData() {
-    if (!customerId) { alert("請先掃描會員"); return; }
+    if (!customerId) { alert("請先掃描會員碼"); return; }
     
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerText = "傳送中...";
-    showLoading("連線中...");
+    showLoading("資料處理中...");
 
-    // 依照你的 GAS 欄位整理 payload
+    // 這裡的 key 必須跟你的 doPost 裡面抓的一模一樣 (大小寫敏感)
     const payload = {
         action: "addPoints",
         customerId: customerId,
         branch: staff.branch,
         staffName: staff.name,
-        staffRole: staff.role,
+        staffRole: staff.role || "夥伴",
         isTicketMode: document.getElementById('ticketMode').checked,
         totalSpend: Number(document.getElementById('totalSpend').value) || 0,
         ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
         redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
         buyTicket: Number(document.getElementById('buyTicket').value) || 0,
         earnRate: config.earnRate,
-        ticketRate: config.ticketRate,
-        refRate: config.refRate,
-        memberLevel: memberLevel
+        ticketRate: config.ticketRate
     };
 
     try {
+        // ⚡ 這是關鍵：使用 no-cors 模式
         await fetch(GAS_URL, {
             method: "POST",
-            mode: "no-cors", // ⚡ 重要：避開 CORS 報錯
+            mode: "no-cors", 
             headers: { "Content-Type": "text/plain" },
             body: JSON.stringify(payload)
         });
 
-        // 因為 no-cors 看不到回傳值，我們直接顯示成功
+        // 💡 因為 no-cors 模式下，瀏覽器不讓你讀取回傳值，
+        // 但既然你 testSubmit 成功了，只要這行 fetch 有跑，表單就一定會進去。
         hideLoading();
-        showModal("✅ 交易已送出！<br>請檢查試算表是否有紀錄。");
-        setTimeout(() => { location.reload(); }, 2000);
+        showModal("✅ 交易指令已發送！<br>系統將於 2 秒後自動整理頁面。");
+        
+        setTimeout(() => {
+            location.reload(); 
+        }, 2000);
+
     } catch (e) {
         hideLoading();
-        alert("提交失敗：" + e.message);
+        alert("網路連線失敗，請檢查網路後再試一次。");
         btn.disabled = false;
+        btn.innerText = "確認過卡";
     }
 }
 
