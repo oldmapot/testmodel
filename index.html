@@ -214,10 +214,10 @@ function openRightsModal(e) {
         color: #222;
         padding: 0 8px;
       }
-      /* 頂級項目：◆ 開頭，第一行頂格 */
+      /* 頂級項目：◆ 開頭，標題加粗 */
       .main-item {
         position: relative;
-        padding-left: 28px;
+        padding-left: 28px; /* 給菱形預留空間 */
         margin-bottom: 10px;
         font-weight: bold;
       }
@@ -230,11 +230,11 @@ function openRightsModal(e) {
         line-height: 1.8;
         color: #000;
       }
-      /* 子項目：• 開頭，統一縮排（和頂級項目換行對齊） */
+      /* 子項目：• 開頭，精準對齊頂級項目的第一個字 */
       .sub-item {
         position: relative;
-        padding-left: 28px;
-        margin: 4px 0 4px 28px;
+        padding-left: 28px; /* 給圓點預留空間 */
+        margin: 4px 0 4px 28px; /* 左邊縮排28px，剛好對齊「個」字 */
         font-weight: normal;
       }
       .sub-item::before {
@@ -246,7 +246,7 @@ function openRightsModal(e) {
         line-height: 1.8;
         color: #000;
       }
-      /* 頂級項目內的換行內容，自動對齊子項目 */
+      /* 頂級項目換行內容：對齊子項目 */
       .main-item .wrap-text {
         display: block;
         padding-left: 28px;
@@ -259,15 +259,15 @@ function openRightsModal(e) {
     <div class="rights-container">
       <div class="main-item">點數價值：1 點 = NT$1 元。</div>
 
-      <div class="main-item">個人集點：
-        <div class="sub-item">以「實付金額（折抵後）」之 5% 計算。</div>
+      <div class="main-item">個人集點回饋：
+        <div class="sub-item">以「實付金額（折抵/折扣後）」之 5% 計算。</div>
         <div class="sub-item">點數效期：自取得日起算 12 個月。</div>
       </div>
 
-      <div class="main-item">推薦分紅：
+      <div class="main-item">推薦分紅回饋：
         <div class="sub-item">以被推薦人「實付金額」之 2% 計算。</div>
         <div class="sub-item">點數效期：自取得日起算 6 個月。</div>
-        <div class="sub-item"><b>資格限制</b>：若推薦人超過 <b>90 天</b>無消費紀錄，系統將暫停發放分紅。</div>
+        <div class="sub-item"><b>資格限制</b>：若推薦人超過 <b>90 天</b>無店內消費紀錄，系統將暫停發放該筆推薦回饋點數。</div>
       </div>
 
       <div class="main-item">生效時間：
@@ -306,10 +306,10 @@ function openLegalModal(e) {
         color: #222;
         padding: 0 8px;
       }
-      /* 頂級項目：◆ 開頭，第一行頂格 */
+      /* 頂級項目：◆ 開頭，標題加粗 */
       .main-item {
         position: relative;
-        padding-left: 28px;
+        padding-left: 28px; /* 給菱形預留空間 */
         margin-bottom: 10px;
         font-weight: bold;
       }
@@ -322,7 +322,7 @@ function openLegalModal(e) {
         line-height: 1.8;
         color: #000;
       }
-      /* 頂級項目內的換行內容，自動對齊子項目 */
+      /* 頂級項目換行內容：對齊子項目 */
       .main-item .wrap-text {
         display: block;
         padding-left: 28px;
