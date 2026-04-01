@@ -251,7 +251,7 @@ async function processScannedCode(scannedText) {
         if (parsed.type === "member") {
             const userId = parsed.userId;
             // 優化點：使用樣板字串並加上快取控制
-            const res = await fetch(`${GAS_URL}?action=checkID&userId=${encodeURIComponent(userId)}&branch=${encodeURIComponent(staff.branch)}&staffBranchCode=${staffBranchCode}&t=${Date.now()}`);
+            const res = await fetch(`${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&branch=${staff.branch}`);
             const data = await res.json();
             hideLoading();
             
