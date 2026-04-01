@@ -240,7 +240,6 @@ function openShopInfo() {
     openModal(html);
 }
 
-// 產生符合後端驗證規則的會員碼： shopCode_randomKey_userId
 function generateMemberCode() {
     if (!userId || !userData?.shopKey) return;
     const shopCode = userData.shopCode;   // "omp" 或 "swo"
@@ -253,17 +252,27 @@ function generateMemberCode() {
 function generateRegCode() {
     if (!referrerParam || referrerParam === 'undefined' || referrerParam === '') return;
     let q = document.getElementById('regGiftQR');
-    // 邀請碼格式與一般會員碼相同，只是 userId 改為 referrerParam
     const shopCode = (currentFrom === 'so') ? 'swo' : 'omp';
-    // 註冊階段沒有後端給的 shopKey，先留空，由店員端自動判斷
     const codeData = `INV_${shopCode}_${referrerParam}`;
     q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
 }
 
 async function initLiff() {
-    let params = new URLSearchParams(window.location.search);
-    currentFrom = params.get('from') || 'omp';
-    referrerParam = params.get('referrer') || '';
+    const urlParams = new URLSearchParams(window.location.search);
+    currentFrom = urlParams.get('from') || 'omp';
+    
+    let rawReferrer = urlParams.get('referrer');
+    if (rawReferrer) {
+        try {
+            referrerParam = decodeURIComponent(rawReferrer);
+        } catch(e) {
+            referrerParam = rawReferrer;
+        }
+    } else {
+        referrerParam = '';
+    }
+    referrerParam = referrerParam.trim();
+    
     const loadingText = document.getElementById('loading-text');
     if (currentFrom === 'so') {
         document.body.classList.add('theme-so');
@@ -278,6 +287,7 @@ async function initLiff() {
         userId = (await liff.getProfile()).userId;
         await fetchData();
     } catch(e) { 
+        console.error('LIFF init error:', e);
         showToast('初始化失敗，請重新開啟頁面'); 
         document.getElementById('loading').style.display = 'none';
     }
@@ -285,7 +295,7 @@ async function initLiff() {
 
 async function fetchData(isReload = false) {
     try {
-        const url = `${GAS_URL}?action=checkID&userId=${userId}&from=${currentFrom}&referrerId=${referrerParam}&t=${Date.now()}`;
+        const url = `${GAS_URL}?action=checkID&userId=${userId}&from=${currentFrom}&referrerId=${encodeURIComponent(referrerParam)}&t=${Date.now()}`;
         let res = await fetch(url);
         if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
         let responseText = await res.text();
@@ -297,7 +307,6 @@ async function fetchData(isReload = false) {
             const displayPoints = userData.points !== undefined ? userData.points : (userData.profile?.points || 0);
             document.getElementById('pointsDisplay').innerText = displayPoints;
             document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
-            // 使用後端回傳的 shopKey 產生 QR Code
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
         } else {
@@ -340,7 +349,7 @@ async function doRegister() {
     document.getElementById('regUI').style.display = 'none';
     
     try {
-        let res = await fetch(`${GAS_URL}?action=register&userId=${userId}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&birthday=${birthday}&referrerId=${referrerParam}&from=${currentFrom}`);
+        let res = await fetch(`${GAS_URL}?action=register&userId=${userId}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&birthday=${birthday}&referrerId=${encodeURIComponent(referrerParam)}&from=${currentFrom}`);
         let result = await res.json();
         
         if (result.success) {
@@ -373,7 +382,7 @@ function openReferral() {
             <tr>
                 <td style="width:45%; padding:6px 0; text-align:left; vertical-align:top;">${i+1}. ${r.name}</td>
                 <td style="width:55%; padding:6px 0; text-align:left; vertical-align:top;">加入日期 ${r.date}</td>
-            </tr>
+             </tr>
         `).join('');
     } else {
         html += `<tr><td colspan="2" style="padding:10px 0; color:#999;">尚無好友加入</td></tr>`;
@@ -393,7 +402,7 @@ function openPointHistory() {
                 <th style="padding:6px 2px;">推　薦<br>回饋點</th>
                 <th style="padding:6px 2px;">當日<br>折抵</th>
                 <th style="padding:6px 2px;">過期<br>點數</th>
-            </tr>
+             </tr>
         </thead>
         <tbody>`;
     let totalExpiredSoon = 0;
@@ -410,7 +419,7 @@ function openPointHistory() {
                 <td style="padding:8px 2px;">${h.share || ''}</td>
                 <td style="padding:8px 2px; color:#d00;">${h.spend || ''}</td>
                 <td style="padding:8px 2px; color:#d00;">${expiredValue}</td>
-            </tr>`;
+             </tr>`;
         }).join('');
     } else { html += `<tr><td colspan="5" style="padding:25px; color:#999;">目前尚無紀錄</td></tr>`; }
     html += `</tbody></table><div style="margin-top:20px; padding:15px; background:#fff5f5; border-radius:12px; border:1px dashed #ab545a; text-align:center;">
@@ -423,9 +432,13 @@ function openPointHistory() {
 function openProfile() { let p = userData?.profile; if(!p) return; openModal(`<h3 style="color:var(--primary); text-align:center;">👤 個人資料</h3><p>姓名：${p.name}</p><p>電話：${p.phone}</p><p>生日：${p.birthday}</p>`); }
 
 function autoCopyShare() { 
-    navigator.clipboard.writeText(`✨ 發現高雄隱藏版美味 ✨\n立即加入領取新客禮：\nhttps://liff.line.me/${LIFF_ID}?from=${currentFrom}&referrer=${userId}`)
-    .then(() => openModal(`<div class="share-modal-content"><div class="share-title">✅ 推薦碼已複製！</div><div class="share-body">趕快請好友領取新客招待禮<br>他消費，你領回饋 💕</div></div>`))
-    .catch(() => showToast('複製失敗')); 
+    const encodedReferrer = encodeURIComponent(userId);
+    const shareUrl = `https://liff.line.me/${LIFF_ID}?from=${currentFrom}&referrer=${encodedReferrer}`;
+    const shareText = `✨ 發現高雄隱藏版美味 ✨\n立即加入領取新客禮：\n${shareUrl}`;
+    
+    navigator.clipboard.writeText(shareText)
+        .then(() => openModal(`<div class="share-modal-content"><div class="share-title">✅ 推薦碼已複製！</div><div class="share-body">趕快請好友領取新客招待禮<br>他消費，你領回饋 💕</div></div>`))
+        .catch(() => showToast('複製失敗，請手動複製')); 
 }
 
 function openModal(html) { document.getElementById('modalBody').innerHTML = html; document.getElementById('modal').style.display = 'flex'; }
