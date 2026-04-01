@@ -42,7 +42,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
+    <div class="loadingText" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
 </div>
 
 <div id="customModal">
@@ -207,15 +207,23 @@ async function onScanSuccess(scannedText) {
 // ==================== 相機 ====================
 async function openCamera() {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: "environment",
+                focusMode: "continuous"
+            }
+        });
         cameraStream = stream;
         const video = document.getElementById('cameraPreview');
         video.srcObject = stream;
-        await video.play();
-        document.getElementById('cameraContainer').style.display = 'flex';
-        startScanning();
+
+        video.onloadedmetadata = async () => {
+            await video.play();
+            document.getElementById('cameraContainer').style.display = 'flex';
+            startScanning();
+        };
     } catch (err) {
-        showModal("無法開啟相機，請檢查權限\n" + err.message);
+        showModal("相機開啟失敗，請使用掃碼槍\n" + err.message);
         document.getElementById('hiddenIdInput').focus();
     }
 }
@@ -229,34 +237,25 @@ function startScanning() {
     if (scanInterval) clearInterval(scanInterval);
     
     scanInterval = setInterval(() => {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            // 嘗試解析 QR Code
-            const code = jsQR(imgData.data, canvas.width, canvas.height, {
-                inversionAttempts: "dontInvert",
-            });
+        if (!video.videoWidth || !video.videoHeight) return;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imgData.data, canvas.width, canvas.height);
 
-            if (code) {
-                console.log("找到 Code:", code.data);
-                statusText.innerText = "✅ 掃描成功！讀取中...";
-                statusText.style.background = "rgba(0,185,0,0.8)";
-                
-                clearInterval(scanInterval);
-                scanInterval = null;
-                onScanSuccess(code.data);
-            } else {
-                statusText.innerText = "正在對焦 QR Code...";
-            }
+        if (code) {
+            statusText.innerText = "✅ 掃描成功！";
+            statusText.style.background = "#00b900";
+            onScanSuccess(code.data);
         }
-    }, 300); // 稍微放慢一點點，讓手機有時間對焦
+    }, 80);
 }
 
 async function closeCamera() {
-    if (scanInterval) clearInterval(scanInterval);
+    clearInterval(scanInterval);
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
     cameraStream = null;
     document.getElementById('cameraContainer').style.display = 'none';
@@ -278,12 +277,10 @@ function init() {
         document.getElementById('hiddenIdInput').focus();
         setupScannerListener();
     } else {
-        // 修改這裡：不再顯示訪客，直接提示並導回
         hideLoading();
         showModal("⚠️ <b style='color:red;'>登入逾時或參數錯誤</b><br>請重新從 LINE 選單進入系統。");
         document.getElementById('staff-name').innerText = "未登入";
         document.getElementById('role-text').innerText = "無權限";
-        // 鎖定提交按鈕防止誤按
         document.getElementById('submitBtn').disabled = true;
     }
 }
