@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>老娘的一點心意_測試</title>
+    <title>老娘的一點心意</title>
     <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <style>
@@ -240,16 +240,23 @@ function openShopInfo() {
     openModal(html);
 }
 
+// 產生符合後端驗證規則的會員碼： shopCode_randomKey_userId
 function generateMemberCode() {
-    if (!userToken) return;
-    let q = document.getElementById('qrcode');
-    q.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(userToken)}`;
+    if (!userId || !userData?.shopKey) return;
+    const shopCode = userData.shopCode;   // "omp" 或 "swo"
+    const randomKey = userData.shopKey;   // 後端給的隨機金鑰
+    const qrData = `${shopCode}_${randomKey}_${userId}`;
+    const qrImg = document.getElementById('qrcode');
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
 }
 
 function generateRegCode() {
     if (!referrerParam || referrerParam === 'undefined' || referrerParam === '') return;
     let q = document.getElementById('regGiftQR');
-    let codeData = `INV_${referrerParam}`;
+    // 邀請碼格式與一般會員碼相同，只是 userId 改為 referrerParam
+    const shopCode = (currentFrom === 'so') ? 'swo' : 'omp';
+    // 註冊階段沒有後端給的 shopKey，先留空，由店員端自動判斷
+    const codeData = `INV_${shopCode}_${referrerParam}`;
     q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
 }
 
@@ -269,7 +276,6 @@ async function initLiff() {
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) { liff.login(); return; }
         userId = (await liff.getProfile()).userId;
-        userToken = btoa(`${userId}_${Date.now()}`).replace(/=/g, '');
         await fetchData();
     } catch(e) { 
         showToast('初始化失敗，請重新開啟頁面'); 
@@ -291,6 +297,7 @@ async function fetchData(isReload = false) {
             const displayPoints = userData.points !== undefined ? userData.points : (userData.profile?.points || 0);
             document.getElementById('pointsDisplay').innerText = displayPoints;
             document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
+            // 使用後端回傳的 shopKey 產生 QR Code
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
         } else {
@@ -299,7 +306,6 @@ async function fetchData(isReload = false) {
             if (referrerParam && referrerParam !== 'undefined' && referrerParam !== '') {
                 document.getElementById('regGiftArea').style.display = 'block';
                 let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
-                // 👉 這裡全部改成置中對齊
                 document.getElementById('giftTitle').innerText = `🎁 你的好友 ${referrerName} 送你的專屬好禮`;
                 document.getElementById('giftTitle').style.textAlign = "center";
                 document.getElementById('giftTip').style.textAlign = "center";
@@ -315,12 +321,11 @@ async function fetchData(isReload = false) {
 
 async function doRegister() {
     let name = document.getElementById('regName').value.trim();
-    let phone = document.getElementById('regPhone').value.trim(); // 直接拿帶格式的電話，不處理
+    let phone = document.getElementById('regPhone').value.trim();
     let birthday = document.getElementById('regBirthday').value;
     let agreeRights = document.getElementById('agreeRights').checked;
     let agreeLegal = document.getElementById('agreeLegal').checked;
 
-    // 驗證格式 09xx-xxx-xxx
     const phonePattern = /^09\d{2}-\d{3}-\d{3}$/;
     if (!phonePattern.test(phone)) {
         return showToast('請輸入正確格式：09xx-xxx-xxx');
@@ -335,7 +340,6 @@ async function doRegister() {
     document.getElementById('regUI').style.display = 'none';
     
     try {
-        // 提交時直接傳送 09xx-xxx-xxx 格式，不做任何取代
         let res = await fetch(`${GAS_URL}?action=register&userId=${userId}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&birthday=${birthday}&referrerId=${referrerParam}&from=${currentFrom}`);
         let result = await res.json();
         
