@@ -116,11 +116,10 @@
 
 <script>
 // ==================== 配置 ====================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec?action=getMemberInfo&userId=" + userId + "&sysKey=old520";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec"; 
 
 let staff = { name: "", branch: "", role: "" };
-// ✅ 修改：初始化 config 為空，等待從後端更新
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
+let config = { minSpend: 100, maxRate: 0.5, earnRate: 0.05, ticketRate: 0.03, refRate: 0.02 };
 let customerId = "", currentPoints = 0, memberLevel = "一般會員";
 
 let cameraStream = null;
@@ -159,7 +158,7 @@ function parseScannedCode(scannedText) {
 
 // ==================== 查詢會員 ====================
 async function fetchMemberInfo(userId) {
-    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
+    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}`;
     const res = await fetch(url);
     return await res.json();
 }
@@ -174,24 +173,18 @@ async function onScanSuccess(scannedText) {
     console.log("解析結果:", parsed);
 
     try {
-        showLoading("查詢會員資料...");
+        showLoading("連線中...");
+        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
         
-        const data = await fetchMemberInfo(parsed.userId);
+        const res = await fetch(finalUrl, { 
+            method: "GET",
+            mode: "cors"
+        });
+        
+        const data = await res.json();
         hideLoading();
         
         if (data.success && data.member) {
-            // ✅ 關鍵修復 1：從後端接收正確的 config，並更新到全域 config
-            if (data.config) {
-                config = data.config;
-                console.log("✅ 已更新系統參數 (config):", config);
-                console.log("   - 低消門檻 (minSpend):", config.minSpend);
-                console.log("   - 折抵上限 (maxRate):", config.maxRate);
-                console.log("   - 集點比例 (earnRate):", config.earnRate);
-            } else {
-                console.warn("⚠️ 後端未回傳 config，使用預設值");
-                config = { minSpend: 1500, maxRate: 0.2, earnRate: 0.03, ticketRate: 0, refRate: 0.02 };
-            }
-
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
@@ -210,7 +203,6 @@ async function onScanSuccess(scannedText) {
         }
     } catch (err) {
         hideLoading();
-        console.error("查詢失敗:", err);
         showModal("系統連線失敗：" + err.message);
     }
 }
@@ -365,12 +357,6 @@ function toggleMode() {
 }
 
 function doCalc() {
-    // ✅ 確保 config 已經從後端載入，且有正確的數值
-    if (!config.earnRate) {
-        console.warn("⚠️ doCalc: config 尚未載入，請稍後再試");
-        return;
-    }
-
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
     if (isTicket) {
@@ -380,29 +366,19 @@ function doCalc() {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
         const base = total - ticket;
-        // ✅ 關鍵修復 2：使用 config 中的正確參數進行折抵上限計算
         const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = max;
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        // ✅ 關鍵修復 3：使用 config 中的正確參數計算可獲得點數
         newPts = Math.floor((base - redeem) * config.earnRate);
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== 提交 ====================
+// ==================== ✅ 修好：提交函數 ====================
 async function submitData() {
-  if (!customerId) {
-      alert("❌ 請先掃描會員條碼！");
-      return;
-  }
-  
-  if (!config.earnRate) {
-      alert("⚠️ 系統參數尚未載入，請重新掃描會員條碼");
-      return;
-  }
+  if (!customerId) return alert("❌ 請先掃描會員！");
 
   const isTicketMode = document.getElementById('ticketMode').checked;
   const btn = document.getElementById('submitBtn');
@@ -410,6 +386,7 @@ async function submitData() {
   showLoading("同步老娘帳本中...");
 
   const payload = {
+    action: "addPoints", // 雖然 GAS 沒判斷，但帶帶著備用
     customerId: customerId,
     branch: staff.branch,
     staffName: staff.name,
@@ -419,35 +396,26 @@ async function submitData() {
     ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
     redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
     buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-    earnRate: config.earnRate,
+    // 記得補上這些 GAS 需要的比例，否則計算會變 0
+    earnRate: config.earnRate, 
     ticketRate: config.ticketRate
   };
-
-  console.log("提交 payload:", payload);
 
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      mode: 'no-cors', // 重要：避免手機瀏覽器跨網域阻擋
+      headers: { 'Content-Type': 'text/plain' }, 
       body: JSON.stringify(payload)
     });
-    
-    const result = await res.text();
+
     hideLoading();
-    console.log("伺服器回應:", result);
-    
-    if (result === "SUCCESS") {
-        alert("✅ 結帳完成！");
-        setTimeout(() => location.reload(), 1500);
-    } else {
-        alert("⚠️ 結帳失敗，請查看錯誤訊息：" + result);
-        btn.disabled = false;
-    }
+    alert("✅ 請求已發送！請檢查 LINE 通知。");
+    location.reload();
   } catch (err) {
     hideLoading();
     btn.disabled = false;
-    console.error("提交錯誤:", err);
-    alert("❌ 網路連線失敗：" + err.message);
+    alert("❌ 傳送失敗：" + err.message);
   }
 }
 // 啟動
