@@ -387,7 +387,8 @@ function doCalc() {
         document.getElementById('max-hint').innerText = max;
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        newPts = Math.floor((base - redeem) * config.earnRate);
+        var levelRate = memberLevelRate || 1;
+newPts = Math.floor((base - redeem) * config.earnRate * levelRate);
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
