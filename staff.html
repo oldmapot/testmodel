@@ -112,7 +112,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loadingText" id="loadingText">老娘正在火速趕來...</div>
+    <div class="loading-text" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
 </div>
 
 <div id="customModal">
@@ -143,8 +143,10 @@
 
     <!-- 按鈕並排 -->
     <div class="scan-row">
-        <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描\n準備掃碼槍</button>
-        <button class="btn btn-refresh" onclick="location.reload()">重新\n整理</button>
+        <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描
+準備掃碼槍</button>
+        <button class="btn btn-refresh" onclick="location.reload()">重新
+整理</button>
     </div>
 
     <div class="member-info" id="member-ui">
@@ -240,7 +242,7 @@ async function onScanSuccess(scannedText) {
     if (navigator.vibrate) navigator.vibrate(200);
     const parsed = parseScannedCode(scannedText);
     try {
-        showLoading("連線中...請保持微笑^^");
+        showLoading("連線中...");
         const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
         const res = await fetch(finalUrl, { method: "GET", mode: "cors" });
         const data = await res.json();
@@ -313,22 +315,23 @@ async function closeCamera() {
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// 初始化：刪除姓名輸入，只保留分店選擇
+// 初始化：修復 NaN，還原你原本的取值方式，只移除姓名 prompt
 function init() {
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get('name') || '';
-    const branch = params.get('branch') || '';
-    const role = params.get('role') || '夥伴';
+    let savedName = localStorage.getItem('staff_name');
+    let savedBranch = localStorage.getItem('staff_branch');
+    let savedRole = localStorage.getItem('staff_role') || "夥伴";
 
-    if (!name || !branch) {
-        alert("請從登入頁進入");
-        location.href = "index.html";
-        return;
-    }
+    // 保留：每次都要選擇分店
+    savedBranch = prompt("請選擇分店：", "老娘鍋(河堤店)");
+    if (!savedBranch) { alert("分店為必填"); return; }
+    localStorage.setItem('staff_branch', savedBranch);
 
-    staff = { name, branch, role };
+    staff = { 
+        name: savedName || "", 
+        branch: savedBranch, 
+        role: savedRole 
+    };
     
-    // 顯示資訊
     document.getElementById('staff-name-bottom').innerText = staff.name;
     document.getElementById('header-branch').innerText = staff.branch;
     
@@ -409,7 +412,7 @@ async function submitData() {
     });
 
     hideLoading();
-    alert("✅ 集點作業完成，提醒客人確認LINE訊息");
+    alert("✅ 集點作業完成，請客人確認LINE訊息");
     location.reload();
 }
 
