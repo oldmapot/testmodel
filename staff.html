@@ -340,12 +340,16 @@ function toggleMode() {
     doCalc();
 }
 
+// 🔧 問題3 & 問題4修正：doCalc 使用正確的等級倍率
 function doCalc() {
+    if (!config.earnRate) return;
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
+    const currentLevelRate = config.levelRate || 1;  // 🔧 使用從後端取得的等級倍率
+
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate);
+        newPts = Math.floor(buy * config.ticketRate * currentLevelRate);  // 🔧 加入等級倍率
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
@@ -354,17 +358,13 @@ function doCalc() {
         document.getElementById('max-hint').innerText = max;
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        newPts = Math.floor((base - redeem) * config.earnRate);
+        // 🔧 問題4修正：計算公式加入等級倍率
+        newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate);
     }
 
-    // 只加這兩行「防 NaN」，其餘完全跟你原本一樣
-    newPts = isNaN(newPts) ? 0 : newPts;
-    const afterPts = (currentPoints || 0) - redeem + newPts;
-
     document.getElementById('new-pts').innerText = newPts;
-    document.getElementById('after-pts').innerText = afterPts;
+    document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
-
 async function submitData() {
     if (!customerId) return alert("請先掃描會員！");
     const isTicketMode = document.getElementById('ticketMode').checked;
