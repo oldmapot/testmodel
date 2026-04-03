@@ -369,32 +369,45 @@ function toggleMode() {
 }
 
 function doCalc() {
-    if (!config.earnRate || config.earnRate === 0) return;
+    // 1. 取得基礎比例（優先從後端 config 拿，預設 0.03）
+    const earnRate = Number(config.earnRate) || 0.03;
     
+    // 2. 取得會員倍率（這是關鍵！白金會員應為 2.5）
+    // 確保這裡抓到的是全域變數 memberLevelRate
+    const levelRate = Number(memberLevelRate) || 1;
+
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
 
     if (isTicket) {
+        // 購買餐券模式
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate);
+        newPts = Math.floor(buy * (config.ticketRate || 0));
     } else {
+        // 一般消費模式
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
-        const base = total - ticket;
+        const base = total - ticket; // 淨消費額
         
-        // 折抵上限計算
+        // 折抵點數上限計算
         const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = max;
         
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
 
-        // 【修正核心公式】
-        // 點數 = (淨消費額) * 基礎集點率 * 會員等級倍率
-        newPts = Math.floor((base - redeem) * config.earnRate * memberLevelRate);
+        // --- 核心計算公式修正 ---
+        // 點數 = (淨消費額 - 折抵點數) × 3% × 2.5倍
+        // 以 $10,000 為例：(10000 - 0) × 0.03 × 2.5 = 750
+        newPts = Math.floor((base - redeem) * earnRate * levelRate);
     }
+
+    // 更新介面顯示
     document.getElementById('new-pts').innerText = newPts;
-    document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
+    document.getElementById('after-pts').innerText = (currentPoints - redeem + newPts);
+    
+    // Debug 用：可在手機瀏覽器開發者工具查看數值
+    console.log(`計算詳情: 淨額=${base-redeem}, 基礎率=${earnRate}, 等級倍率=${levelRate}, 結果=${newPts}`);
 }
 
 // ==================== 提交函數 ====================
