@@ -13,6 +13,10 @@
         .btn-scan { background: #00b900; color: white; }
         .btn-submit { background: #1a73e8; color: white; margin-top: 10px; }
         .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary { background: #6c757d; color: white; margin-top: 10px; }
+        .btn-secondary:hover { background: #5a6268; }
+        .btn-danger { background: #dc3545; color: white; margin-top: 10px; }
+        .btn-danger:hover { background: #c82333; }
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
         input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
@@ -35,6 +39,8 @@
         .camera-btn-close { background: #ff4444; color: white; }
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
+        .button-group { display: flex; gap: 10px; margin-top: 10px; }
+        .button-group .btn-secondary, .button-group .btn-danger { flex: 1; margin-top: 0; }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -66,8 +72,9 @@
     <div class="header">
         <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
         <div style="font-size:14px; color:#666; margin-top:5px;">
-            夥伴：<span id="staff-name">-</span> <span id="role-text" class="role-badge">-</span>
+            <span id="staff-name">-</span> <span id="role-text" class="role-badge">-</span>
         </div>
+        <div style="font-size:12px; color:#888; margin-top:5px;" id="welcome-message"></div>
     </div>
 
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
@@ -110,7 +117,12 @@
             結帳後總資產：<b id="after-pts">0</b> 點
         </div>
 
-       <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
+        <div class="button-group">
+            <button class="btn btn-secondary" id="resetBtn" onclick="resetMemberData()">🔄 重新整理</button>
+            <button class="btn btn-danger" id="logoutBtn" onclick="logout()">🚪 登出</button>
+        </div>
+
+        <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
     </div>
 </div>
 
@@ -119,26 +131,95 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT
 
 let staff = { name: "", branch: "", role: "" };
 let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
-let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;  // 🔧 新增 levelRate
+let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
+let idleTimer = null;
+let lastActivityTime = Date.now();
 
+// ==================== 閒置登出功能 ====================
+function resetIdleTimer() {
+    lastActivityTime = Date.now();
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+        const now = Date.now();
+        if (now - lastActivityTime >= 5 * 60 * 1000) { // 5分鐘
+            logout();
+        }
+    }, 5 * 60 * 1000);
+}
+
+function onUserActivity() {
+    resetIdleTimer();
+}
+
+// 監聽用戶活動
+function setupActivityListeners() {
+    const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => {
+        document.addEventListener(event, onUserActivity);
+    });
+}
+
+// ==================== 重新整理功能（只清除會員資料）====================
+function resetMemberData() {
+    customerId = "";
+    currentPoints = 0;
+    memberLevel = "";
+    levelRate = 1;
+    config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
+    
+    document.getElementById('member-ui').style.display = 'none';
+    document.getElementById('form-ui').classList.add('locked');
+    document.getElementById('cus-name').innerText = "-";
+    document.getElementById('member-level').innerText = "";
+    document.getElementById('cus-pts').innerText = "0";
+    document.getElementById('cus-total').innerText = "0";
+    document.getElementById('totalSpend').value = "";
+    document.getElementById('ticketSpend').value = "";
+    document.getElementById('redeemAmount').value = "";
+    document.getElementById('buyTicket').value = "";
+    document.getElementById('new-pts').innerText = "0";
+    document.getElementById('after-pts').innerText = "0";
+    document.getElementById('max-hint').innerText = "0";
+    
+    showModal("✅ 已清除會員資料，可繼續掃描下一位會員");
+    
+    // 重新聚焦掃碼輸入框
+    document.getElementById('hiddenIdInput').focus();
+    resetIdleTimer();
+}
+
+// ==================== 登出功能 ====================
+function logout() {
+    if (idleTimer) clearTimeout(idleTimer);
+    localStorage.clear();
+    // 跳轉回登入頁面
+    window.location.href = "staff_login.html";
+}
+
+// ==================== 工具函數 ====================
 function showLoading(text) {
     const el = document.getElementById('loadingText');
     if (text) el.innerText = text;
     document.getElementById('loadingOverlay').style.display = 'flex';
+    resetIdleTimer();
 }
 function hideLoading() {
     document.getElementById('loadingOverlay').style.display = 'none';
+    resetIdleTimer();
 }
 function showModal(html) {
     document.getElementById('modalText').innerHTML = html;
     document.getElementById('customModal').style.display = 'flex';
+    resetIdleTimer();
 }
 function closeModal() {
     document.getElementById('customModal').style.display = 'none';
+    resetIdleTimer();
 }
 
+// ==================== QR 解析 ====================
 function parseScannedCode(scannedText) {
     let clean = String(scannedText).trim();
     if (clean.indexOf("##") === 0) clean = clean.substring(2);
@@ -151,26 +232,29 @@ function parseScannedCode(scannedText) {
     return { type: "member", userId: clean };
 }
 
+// ==================== 查詢會員 ====================
+async function fetchMemberInfo(userId) {
+    const url = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(userId)}&branch=${encodeURIComponent(staff.branch)}&t=${Date.now()}`;
+    const res = await fetch(url);
+    return await res.json();
+}
+
+// ==================== 掃描處理 ====================
 async function onScanSuccess(scannedText) {
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
     await closeCamera();
     if (navigator.vibrate) navigator.vibrate(200);
     const parsed = parseScannedCode(scannedText);
     try {
-        showLoading("連線中...");
-        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
-        const res = await fetch(finalUrl, { method: "GET", mode: "cors" });
-        const data = await res.json();
+        showLoading("查詢會員資料...");
+        const data = await fetchMemberInfo(parsed.userId);
         hideLoading();
         if (data.success && data.member) {
-            config = data.config;
+            if (data.config) config = data.config;
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
-            // 🔧 問題3修正：接收後端回傳的等級與倍率
             memberLevel = data.member.level || "一般會員";
             levelRate = data.member.levelRate || 1;
-            
-            // 🔧 將等級倍率存入 config 供 doCalc 使用
             config.levelRate = levelRate;
 
             document.getElementById('member-ui').style.display = 'block';
@@ -188,8 +272,10 @@ async function onScanSuccess(scannedText) {
         hideLoading();
         showModal("系統連線失敗：" + err.message);
     }
+    resetIdleTimer();
 }
 
+// ==================== 相機 ====================
 async function openCamera() {
     try {
         if (cameraStream) await closeCamera();
@@ -208,12 +294,14 @@ async function openCamera() {
         showModal("無法開啟相機，請檢查權限");
         document.getElementById('hiddenIdInput').focus();
     }
+    resetIdleTimer();
 }
 
 function startScanning() {
     const video = document.getElementById('cameraPreview');
     const canvas = document.getElementById('qrCanvas');
     const ctx = canvas.getContext('2d');
+    if (scanInterval) clearInterval(scanInterval);
     scanInterval = setInterval(() => {
         if (!video.videoWidth) return;
         canvas.width = video.videoWidth;
@@ -231,27 +319,51 @@ function startScanning() {
 async function closeCamera() {
     if (scanInterval) clearInterval(scanInterval);
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
     document.getElementById('cameraContainer').style.display = 'none';
+    resetIdleTimer();
 }
 
+// ==================== 登入（直接從 URL 參數讀取店員資料）====================
 function init() {
-    let savedName = localStorage.getItem('staff_name');
-    let savedBranch = localStorage.getItem('staff_branch');
-    let savedRole = localStorage.getItem('staff_role') || "夥伴";
-    if (!savedName || !savedBranch) {
-        savedName = prompt("請輸入店員姓名：");
-        savedBranch = prompt("請輸入分店：", "老娘鍋(河堤店)");
-        if (!savedName || !savedBranch) { alert("必填"); return; }
-        localStorage.setItem('staff_name', savedName);
-        localStorage.setItem('staff_branch', savedBranch);
-        localStorage.setItem('staff_role', savedRole);
+    const url = new URL(window.location.href);
+    const name = url.searchParams.get('name');
+    const branch = url.searchParams.get('branch');
+    const role = url.searchParams.get('role');
+    
+    if (name && branch) {
+        staff = { name: name, branch: branch, role: role || "夥伴" };
+        // 儲存到 localStorage 備用
+        localStorage.setItem('staff_name', name);
+        localStorage.setItem('staff_branch', branch);
+        localStorage.setItem('staff_role', role || "夥伴");
+    } else {
+        // 如果 URL 沒有參數，嘗試從 localStorage 讀取
+        let savedName = localStorage.getItem('staff_name');
+        let savedBranch = localStorage.getItem('staff_branch');
+        let savedRole = localStorage.getItem('staff_role') || "夥伴";
+        if (savedName && savedBranch) {
+            staff = { name: savedName, branch: savedBranch, role: savedRole };
+        } else {
+            // 沒有任何資料，回到登入頁
+            window.location.href = "staff_login.html";
+            return;
+        }
     }
-    staff = { name: savedName, branch: savedBranch, role: savedRole };
+    
+    // 顯示店員資訊
     document.getElementById('staff-name').innerText = staff.name;
     document.getElementById('role-text').innerText = staff.role;
     document.getElementById('shop-name').innerText = staff.branch;
+    document.getElementById('welcome-message').innerHTML = `👋 ${staff.name} 歡迎登入，記得離開要登出唷`;
+    
     hideLoading();
+    document.getElementById('hiddenIdInput').focus();
     setupScannerListener();
+    setupActivityListeners();
+    resetIdleTimer();
+    
+    console.log("✅ 店員身分已確認：", staff);
 }
 
 function setupScannerListener() {
@@ -259,31 +371,36 @@ function setupScannerListener() {
     let buffer = "";
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            onScanSuccess(buffer); buffer = "";
+            if (buffer) {
+                onScanSuccess(buffer);
+                buffer = "";
+            }
         } else {
             buffer += e.key;
             setTimeout(() => { buffer = ""; }, 150);
         }
+        resetIdleTimer();
     });
 }
 
+// ==================== 計算 ====================
 function toggleMode() {
     const isTicket = document.getElementById('ticketMode').checked;
     document.getElementById('normal-fields').style.display = isTicket ? 'none' : 'block';
     document.getElementById('ticket-fields').style.display = isTicket ? 'block' : 'none';
     doCalc();
+    resetIdleTimer();
 }
 
-// 🔧 問題3 & 問題4修正：doCalc 使用正確的等級倍率
 function doCalc() {
     if (!config.earnRate) return;
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
-    const currentLevelRate = config.levelRate || 1;  // 🔧 使用從後端取得的等級倍率
+    const currentLevelRate = config.levelRate || 1;
 
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate * currentLevelRate);  // 🔧 加入等級倍率
+        newPts = Math.floor(buy * config.ticketRate);
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
@@ -292,14 +409,15 @@ function doCalc() {
         document.getElementById('max-hint').innerText = max;
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        // 🔧 問題4修正：計算公式加入等級倍率
-        newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate);
+        newPts = Math.floor((base - redeem) * config.earnRate);
     }
 
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
+    resetIdleTimer();
 }
 
+// ==================== 提交 ====================
 async function submitData() {
     if (!customerId) return alert("請先掃描會員！");
     const isTicketMode = document.getElementById('ticketMode').checked;
@@ -320,20 +438,28 @@ async function submitData() {
         buyTicket: Number(document.getElementById('buyTicket').value) || 0,
         earnRate: config.earnRate,
         ticketRate: config.ticketRate,
-        levelRate: levelRate  // 🔧 傳送等級倍率到後端
+        levelRate: levelRate
     };
 
-    await fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(payload)
-    });
-
-    hideLoading();
-    alert("✅ 作業完成");
-    location.reload();
+    try {
+        await fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify(payload)
+        });
+        hideLoading();
+        alert("✅ 作業完成");
+        resetMemberData(); // 完成後自動清除會員資料，準備掃描下一位
+    } catch (err) {
+        hideLoading();
+        alert("❌ 傳送失敗：" + err.message);
+    } finally {
+        btn.disabled = false;
+        resetIdleTimer();
+    }
 }
 
+// 啟動
 init();
 </script>
 </body>
