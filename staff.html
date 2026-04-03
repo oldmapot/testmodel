@@ -384,23 +384,19 @@ function doCalc() {
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
-        const base = total - ticket;
+        const base = total - ticket;  // ← 這行必須存在！
         
-        // 折抵上限計算
         const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = max;
         
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
 
-        // 【修正核心公式】
-        // 點數 = (淨消費額) * 基礎集點率 * 會員等級倍率
         newPts = Math.floor((base - redeem) * config.earnRate * memberLevelRate);
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
-
 // ==================== 提交函數 ====================
 async function submitData() {
     if (!customerId) return alert("❌ 請先掃描會員！");
