@@ -9,13 +9,17 @@
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         .header { text-align: center; border-bottom: 2px solid #eee; margin-bottom: 15px; padding-bottom: 10px; }
         .role-badge { background: #333; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
-        .btn-scan { background: #00b900; color: white; }
-        .btn-submit { background: #1a73e8; color: white; margin-top: 10px; }
+        
+        /* 按鈕排版：相機大、重新整理小 (1/4) */
+        .btn-row { display: flex; gap: 8px; margin-bottom: 15px; }
+        .btn-reset-row { flex: 0 0 22%; padding: 10px; font-size: 13px; background:#666; color:#fff; border:none; border-radius:8px; cursor:pointer; }
+        .btn-scan { flex: 1; padding: 15px; font-size: 18px; background: #00b900; color: white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
+        
+        .btn-submit { background: #1a73e8; color: white; margin-top: 10px; width:100%; padding:15px; border:none; border-radius:8px; font-size:18px; font-weight:bold; cursor:pointer; }
         .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         .locked { opacity: 0.4; pointer-events: none; }
         .member-info { background: #fff9c4; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; }
         .info-box { background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 15px; }
@@ -36,13 +40,11 @@
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
         
-        /* 只有這裡微調，完全不影響下方 */
         .header-top { display: flex; justify-content: flex-end; gap:6px; margin-bottom:5px; }
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
-        .btn-reset { background:#666; color:#fff; }
         .btn-logout { background:#ff4444; color:#fff; }
     </style>
-    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js"></script>
 </head>
 <body>
 
@@ -70,9 +72,7 @@
 
 <div class="card">
     <div class="header">
-        <!-- 按鈕藏在標題右上方，超美觀 -->
         <div class="header-top">
-            <button class="header-btn btn-reset" onclick="resetMember()">重新整理</button>
             <button class="header-btn btn-logout" onclick="logout()">登出</button>
         </div>
         <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
@@ -81,8 +81,16 @@
         </div>
     </div>
 
+    <!-- 分店：完全隱藏，登入時就選好，這頁不能改 -->
+    <input type="text" id="hiddenBranch" style="display:none;">
+
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
-    <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描 / 準備掃碼槍</button>
+    
+    <!-- 按鈕：重整小 + 相機大 -->
+    <div class="btn-row">
+        <button class="btn-reset-row" onclick="resetMember()">🔄 重整</button>
+        <button class="btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機</button>
+    </div>
 
     <div class="member-info" id="member-ui">
         顧客：<b id="cus-name">-</b> <span id="member-level" class="member-level"></span><br>
@@ -149,7 +157,7 @@ function logout() {
     window.location.href = "staff_login.html";
 }
 
-// 重新整理 → 只清除會員，保留店員
+// 重新整理 → 只清除會員
 function resetMember() {
     customerId = ""; currentPoints=0; memberLevel=""; levelRate=1;
     document.getElementById("member-ui").style.display = "none";
@@ -168,7 +176,6 @@ function resetMember() {
     toggleMode();
 }
 
-// ========== 以下「完全沒動」你原本的程式 ==========
 function showLoading(text) { const el = document.getElementById('loadingText'); if (text) el.innerText = text; document.getElementById('loadingOverlay').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 function showModal(html) { document.getElementById('modalText').innerHTML = html; document.getElementById('customModal').style.display = 'flex'; }
@@ -256,22 +263,20 @@ async function closeCamera() {
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-function init() {
+// 初始化：只讀取登入資料，完全不修改分店
+async function init() {
     let savedName = localStorage.getItem('staff_name');
-    let savedBranch = localStorage.getItem('staff_branch');
     let savedRole = localStorage.getItem('staff_role') || "夥伴";
-    if (!savedName || !savedBranch) {
-        savedName = prompt("請輸入店員姓名：");
-        savedBranch = prompt("請輸入分店：", "老娘鍋(河堤店)");
-        if (!savedName || !savedBranch) { alert("必填"); return; }
-        localStorage.setItem('staff_name', savedName);
-        localStorage.setItem('staff_branch', savedBranch);
-        localStorage.setItem('staff_role', savedRole);
-    }
-    staff = { name: savedName, branch: savedBranch, role: savedRole };
+    let savedBranch = localStorage.getItem('staff_branch');
+
+    staff.name = savedName;
+    staff.role = savedRole;
+    staff.branch = savedBranch;
+
     document.getElementById('staff-name').innerText = staff.name;
     document.getElementById('role-text').innerText = staff.role;
     document.getElementById('shop-name').innerText = staff.branch;
+
     hideLoading();
     setupScannerListener();
     resetIdleTimer();
@@ -319,6 +324,8 @@ function doCalc() {
 
 async function submitData() {
     if (!customerId) return alert("請先掃描會員！");
+    if (!staff.branch) return alert("請先登入選擇分店！");
+    
     const isTicketMode = document.getElementById('ticketMode').checked;
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
