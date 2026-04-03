@@ -200,7 +200,11 @@ async function onScanSuccess(scannedText) {
             memberLevel = data.member.level || "一般會員";
             memberLevelRate = Number(data.member.levelRate) || 1; //接收會員等級
             console.log("偵測到會員等級:", memberLevel, "套用倍率:", memberLevelRate);
-            
+            // 在畫面上顯示倍率（除錯用）
+var rateDiv = document.createElement('div');
+rateDiv.style = "background:yellow; color:red; font-weight:bold; text-align:center; margin-top:5px; padding:5px;";
+rateDiv.innerText = "🔥 測試：會員倍率 = " + memberLevelRate + " 倍 🔥";
+document.getElementById('member-ui').appendChild(rateDiv);
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
             document.getElementById('cus-name').innerText = data.member.name;
