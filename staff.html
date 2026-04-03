@@ -119,7 +119,8 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec"; 
 
 let staff = { name: "", branch: "", role: "" };
-let config = { minSpend: 100, maxRate: 0.5, earnRate: 0.05, ticketRate: 0.03, refRate: 0.02 };
+// ✅ 修改1：初始化為空值，等待後端更新
+let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
 let customerId = "", currentPoints = 0, memberLevel = "一般會員";
 
 let cameraStream = null;
@@ -185,6 +186,15 @@ async function onScanSuccess(scannedText) {
         hideLoading();
         
         if (data.success && data.member) {
+            // ✅ 修改2：從後端接收 config
+            if (data.config) {
+                config = data.config;
+                console.log("✅ 已從後端更新參數:", config);
+            } else {
+                console.warn("⚠️ 後端未回傳 config，使用預設值");
+                config = { minSpend: 1500, maxRate: 0.2, earnRate: 0.03, ticketRate: 0, refRate: 0.02 };
+            }
+            
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
@@ -357,6 +367,12 @@ function toggleMode() {
 }
 
 function doCalc() {
+    // ✅ 修改3：如果 config 無效，直接返回不計算
+    if (!config.earnRate || config.earnRate === 0) {
+        console.warn("⚠️ doCalc: config 尚未從後端載入，無法計算");
+        return;
+    }
+    
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
     if (isTicket) {
@@ -376,7 +392,7 @@ function doCalc() {
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== ✅ 修好：提交函數 ====================
+// ==================== 提交函數 ====================
 async function submitData() {
   if (!customerId) return alert("❌ 請先掃描會員！");
 
@@ -386,7 +402,7 @@ async function submitData() {
   showLoading("同步老娘帳本中...");
 
   const payload = {
-    action: "addPoints", // 雖然 GAS 沒判斷，但帶帶著備用
+    action: "addPoints",
     customerId: customerId,
     branch: staff.branch,
     staffName: staff.name,
@@ -396,7 +412,6 @@ async function submitData() {
     ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
     redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
     buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-    // 記得補上這些 GAS 需要的比例，否則計算會變 0
     earnRate: config.earnRate, 
     ticketRate: config.ticketRate
   };
@@ -404,7 +419,7 @@ async function submitData() {
   try {
     const res = await fetch(GAS_URL, {
       method: 'POST',
-      mode: 'no-cors', // 重要：避免手機瀏覽器跨網域阻擋
+      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' }, 
       body: JSON.stringify(payload)
     });
