@@ -122,7 +122,7 @@ let staff = { name: "", branch: "", role: "" };
 // ✅ 修改1：初始化為空值，等待後端更新
 let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
 let customerId = "", currentPoints = 0, memberLevel = "一般會員";
-
+let memberLevelRate = 1;  // ← 加上這行
 let cameraStream = null;
 let scanInterval = null;
 
@@ -198,6 +198,7 @@ async function onScanSuccess(scannedText) {
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
+            memberLevelRate = data.member.levelRate || 1;  //接收會員等級
             
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
@@ -413,7 +414,8 @@ async function submitData() {
     redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
     buyTicket: Number(document.getElementById('buyTicket').value) || 0,
     earnRate: config.earnRate, 
-    ticketRate: config.ticketRate
+    ticketRate: config.ticketRate,
+  levelRate: memberLevelRate  // ← 加上這行
   };
 
   try {
