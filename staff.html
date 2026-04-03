@@ -399,45 +399,46 @@ function doCalc() {
 
 // ==================== 提交函數 ====================
 async function submitData() {
-  if (!customerId) return alert("❌ 請先掃描會員！");
+    if (!customerId) return alert("❌ 請先掃描會員！");
 
-  const isTicketMode = document.getElementById('ticketMode').checked;
-  const btn = document.getElementById('submitBtn');
-  btn.disabled = true;
-  showLoading("同步老娘帳本中...");
+    const isTicketMode = document.getElementById('ticketMode').checked;
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    showLoading("同步老娘帳本中...");
 
-  const payload = {
-    action: "addPoints",
-    customerId: customerId,
-    branch: staff.branch,
-    staffName: staff.name,
-    staffRole: staff.role,
-    isTicketMode: isTicketMode,
-    totalSpend: Number(document.getElementById('totalSpend').value) || 0,
-    ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
-    redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
-    buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-    earnRate: config.earnRate, 
-    ticketRate: config.ticketRate,
-  levelRate: memberLevelRate  // ← 加上這行
-  };
+    // 這裡我確保了每一個數字都被 Number() 轉換，避免計算出錯
+    const payload = {
+        action: "addPoints",
+        customerId: customerId,
+        branch: staff.branch,
+        staffName: staff.name,
+        staffRole: staff.role,
+        isTicketMode: isTicketMode,
+        totalSpend: Number(document.getElementById('totalSpend').value) || 0,
+        ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
+        redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
+        buyTicket: Number(document.getElementById('buyTicket').value) || 0,
+        earnRate: Number(config.earnRate) || 0,
+        ticketRate: Number(config.ticketRate) || 0,
+        levelRate: Number(memberLevelRate) || 1  // 這行最重要，確保 1.5 倍有傳出去
+    };
 
-  try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' }, 
-      body: JSON.stringify(payload)
-    });
+    try {
+        const res = await fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(payload)
+        });
 
-    hideLoading();
-    alert("✅ 請求已發送！請檢查 LINE 通知。");
-    location.reload();
-  } catch (err) {
-    hideLoading();
-    btn.disabled = false;
-    alert("❌ 傳送失敗：" + err.message);
-  }
+        hideLoading();
+        alert("✅ 點數發放成功！");
+        location.reload();
+    } catch (err) {
+        hideLoading();
+        btn.disabled = false;
+        alert("❌ 傳送失敗：" + err.message);
+    }
 }
 // 啟動
 init();
