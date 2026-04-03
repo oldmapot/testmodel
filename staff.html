@@ -198,8 +198,7 @@ async function onScanSuccess(scannedText) {
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
-            // 修改這裡：強制轉為數字，避免計算出錯
-    memberLevelRate = Number(data.member.levelRate) || 1;
+            memberLevelRate = data.member.levelRate || 1;  //接收會員等級
             
 console.log("從後端收到的 levelRate:", data.member.levelRate);
 console.log("設定後的 memberLevelRate:", memberLevelRate);
@@ -370,12 +369,14 @@ function toggleMode() {
 }
 
 function doCalc() {
-    function doCalc() {
-    if (!config.earnRate || config.earnRate === 0) return;
+    // ✅ 修改3：如果 config 無效，直接返回不計算
+    if (!config.earnRate || config.earnRate === 0) {
+        console.warn("⚠️ doCalc: config 尚未從後端載入，無法計算");
+        return;
+    }
     
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
-
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
         newPts = Math.floor(buy * config.ticketRate);
@@ -383,21 +384,18 @@ function doCalc() {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
         const base = total - ticket;
-        
-        // 折抵上限計算
         const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = max;
-        
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-
-        // 【修正核心公式】
-        // 點數 = (淨消費額) * 基礎集點率 * 會員等級倍率
-        newPts = Math.floor((base - redeem) * config.earnRate * memberLevelRate);
+        var levelRate = memberLevelRate || 1;
+newPts = Math.floor((base - redeem) * config.earnRate * levelRate);
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
+
+// ==================== 提交函數 ====================
 // ==================== 提交函數 ====================
 async function submitData() {
     if (!customerId) return alert("❌ 請先掃描會員！");
