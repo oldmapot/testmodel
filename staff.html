@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>老娘領地-店員端系統-G</title>
+    <title>老娘領地-店員集點系統</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; background: #f4f7f6; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
         .header { text-align: center; border-bottom: 2px solid #eee; margin-bottom: 15px; padding-bottom: 10px; }
-        .role-badge { background: #333; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .shop-name { font-size: 16px; color: #8b0000; font-weight: bold; margin-top: 5px; }
         .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
         .btn-scan { background: #00b900; color: white; }
         .btn-submit { background: #1a73e8; color: white; margin-top: 10px; }
         .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-secondary { background: #6c757d; color: white; margin-top: 10px; }
+        .btn-secondary { background: #6c757d; color: white; }
         .btn-secondary:hover { background: #5a6268; }
-        .btn-danger { background: #dc3545; color: white; margin-top: 10px; }
+        .btn-danger { background: #dc3545; color: white; }
         .btn-danger:hover { background: #c82333; }
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
@@ -39,8 +39,13 @@
         .camera-btn-close { background: #ff4444; color: white; }
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
-        .button-group { display: flex; gap: 10px; margin-top: 10px; }
-        .button-group .btn-secondary, .button-group .btn-danger { flex: 1; margin-top: 0; }
+        .button-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .button-group .btn-scan { flex: 2; margin-bottom: 0; }
+        .button-group .btn-secondary { flex: 1; margin-bottom: 0; }
+        .footer-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; padding-top: 15px; border-top: 1px solid #eee; }
+        .user-info { font-size: 14px; color: #333; font-weight: bold; }
+        .btn-logout { background: #dc3545; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 14px; cursor: pointer; }
+        .btn-logout:hover { background: #c82333; }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -69,18 +74,21 @@
 </div>
 
 <div class="card">
+    <!-- 上方頭部卡片 -->
     <div class="header">
-        <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
-        <div style="font-size:14px; color:#666; margin-top:5px;">
-            <span id="staff-name">-</span> <span id="role-text" class="role-badge">-</span>
-        </div>
-        <div style="font-size:12px; color:#888; margin-top:5px;" id="welcome-message"></div>
+        <h2 style="margin:0; font-size: 20px;">老娘領地-店員集點系統</h2>
+        <div class="shop-name" id="shop-name">老娘鍋(河堤店)</div>
     </div>
 
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
 
-    <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描 / 準備掃碼槍</button>
+    <!-- 按鈕配置：啟動相機掃描 + 重新整理（並排）-->
+    <div class="button-group">
+        <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描 / 準備掃碼槍</button>
+        <button class="btn btn-secondary" id="resetBtn" onclick="resetMemberData()">🔄 重新整理</button>
+    </div>
 
+    <!-- 中間會員資料區 -->
     <div class="member-info" id="member-ui">
         顧客：<b id="cus-name">-</b> <span id="member-level" class="member-level"></span><br>
         現有資產：<b id="cus-pts" style="color:red;">0</b> 點<br>
@@ -117,12 +125,13 @@
             結帳後總資產：<b id="after-pts">0</b> 點
         </div>
 
-        <div class="button-group">
-            <button class="btn btn-secondary" id="resetBtn" onclick="resetMemberData()">🔄 重新整理</button>
-            <button class="btn btn-danger" id="logoutBtn" onclick="logout()">🚪 登出</button>
-        </div>
-
         <button class="btn btn-submit" id="submitBtn" onclick="submitData()">確認過卡</button>
+    </div>
+
+    <!-- 下方卡片：使用者 + 登出（並排）-->
+    <div class="footer-bar">
+        <div class="user-info">👤 使用者：<span id="staff-name">-</span></div>
+        <button class="btn-logout" onclick="logout()">🚪 登出</button>
     </div>
 </div>
 
@@ -143,7 +152,7 @@ function resetIdleTimer() {
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
         const now = Date.now();
-        if (now - lastActivityTime >= 5 * 60 * 1000) { // 5分鐘
+        if (now - lastActivityTime >= 5 * 60 * 1000) {
             logout();
         }
     }, 5 * 60 * 1000);
@@ -153,7 +162,6 @@ function onUserActivity() {
     resetIdleTimer();
 }
 
-// 監聽用戶活動
 function setupActivityListeners() {
     const events = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'];
     events.forEach(event => {
@@ -185,7 +193,6 @@ function resetMemberData() {
     
     showModal("✅ 已清除會員資料，可繼續掃描下一位會員");
     
-    // 重新聚焦掃碼輸入框
     document.getElementById('hiddenIdInput').focus();
     resetIdleTimer();
 }
@@ -194,7 +201,6 @@ function resetMemberData() {
 function logout() {
     if (idleTimer) clearTimeout(idleTimer);
     localStorage.clear();
-    // 跳轉回登入頁面
     window.location.href = "staff_login.html";
 }
 
@@ -324,38 +330,30 @@ async function closeCamera() {
     resetIdleTimer();
 }
 
-// ==================== 登入（直接從 URL 參數讀取店員資料）====================
+// ==================== 登入（保留登入時選擇分店的功能）====================
 function init() {
-    const url = new URL(window.location.href);
-    const name = url.searchParams.get('name');
-    const branch = url.searchParams.get('branch');
-    const role = url.searchParams.get('role');
-    
-    if (name && branch) {
-        staff = { name: name, branch: branch, role: role || "夥伴" };
-        // 儲存到 localStorage 備用
-        localStorage.setItem('staff_name', name);
-        localStorage.setItem('staff_branch', branch);
-        localStorage.setItem('staff_role', role || "夥伴");
-    } else {
-        // 如果 URL 沒有參數，嘗試從 localStorage 讀取
-        let savedName = localStorage.getItem('staff_name');
-        let savedBranch = localStorage.getItem('staff_branch');
-        let savedRole = localStorage.getItem('staff_role') || "夥伴";
+    let savedName = localStorage.getItem('staff_name');
+    let savedBranch = localStorage.getItem('staff_branch');
+    let savedRole = localStorage.getItem('staff_role') || "店員";
+
+    if (!savedName || !savedBranch) {
+        savedName = prompt("【初次設定】請輸入店員姓名：", "");
+        savedBranch = prompt("【初次設定】請輸入分店（1.河堤店 2.一點甜）：", "老娘鍋(河堤店)");
+        
         if (savedName && savedBranch) {
-            staff = { name: savedName, branch: savedBranch, role: savedRole };
+            localStorage.setItem('staff_name', savedName);
+            localStorage.setItem('staff_branch', savedBranch);
+            localStorage.setItem('staff_role', savedRole);
         } else {
-            // 沒有任何資料，回到登入頁
-            window.location.href = "staff_login.html";
+            alert("必須輸入店員資訊才能使用系統！請刷新頁面重新設定。");
             return;
         }
     }
+
+    staff = { name: savedName, branch: savedBranch, role: savedRole };
     
-    // 顯示店員資訊
     document.getElementById('staff-name').innerText = staff.name;
-    document.getElementById('role-text').innerText = staff.role;
     document.getElementById('shop-name').innerText = staff.branch;
-    document.getElementById('welcome-message').innerHTML = `👋 ${staff.name} 歡迎登入，記得離開要登出唷`;
     
     hideLoading();
     document.getElementById('hiddenIdInput').focus();
@@ -363,7 +361,7 @@ function init() {
     setupActivityListeners();
     resetIdleTimer();
     
-    console.log("✅ 店員身分已確認：", staff);
+    console.log("✅ 登入者身分已確認：", staff);
 }
 
 function setupScannerListener() {
@@ -423,7 +421,7 @@ async function submitData() {
     const isTicketMode = document.getElementById('ticketMode').checked;
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    showLoading("處理中...");
+    showLoading("處理中...，保持微笑");
 
     const payload = {
         action: "addPoints",
@@ -448,8 +446,8 @@ async function submitData() {
             body: JSON.stringify(payload)
         });
         hideLoading();
-        alert("✅ 作業完成");
-        resetMemberData(); // 完成後自動清除會員資料，準備掃描下一位
+        alert("✅ 集點作業完成，請客人確認LINE訊息");
+        resetMemberData();
     } catch (err) {
         hideLoading();
         alert("❌ 傳送失敗：" + err.message);
