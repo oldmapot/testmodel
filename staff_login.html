@@ -24,7 +24,7 @@
         .login-card {
             background: white;
             border-radius: 32px;
-            padding: 12px 28px; /* 👈 已改小：圖片更靠近頂部 */
+            padding: 12px 28px;
             max-width: 400px;
             width: 100%;
             box-shadow: 0 20px 40px rgba(0,0,0,0.2);
@@ -32,7 +32,8 @@
         }
         
         .logo {
-            margin-bottom: 5px;
+            /* 🔧 圖片 ↔ 標題 間距：從8px改到2px，徹底貼緊 */
+            margin-bottom: 4px;
             text-align: center;
         }
 
@@ -47,7 +48,8 @@
         h1 {
             font-size: 28px;
             color: #8b0000;
-            margin-bottom: 8px;
+            /* 🔧 標題 ↔ 副標題 間距：從8px改到4px，收緊整體 */
+            margin-bottom: 4px;
             font-weight: 700;
         }
         
@@ -60,7 +62,7 @@
         }
         
         .input-group {
-            margin-bottom: 24px;
+            margin-bottom: 16px; /* 🔧 輸入框 ↔ 按鈕 間距：從24px改到16px，縮小空白 */
             text-align: left;
         }
         
@@ -100,7 +102,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-top: 16px;
+            margin-top: 8px; /* 🔧 按鈕上方額外間距：從16px改到8px，再收一點 */
         }
         
         .login-btn:hover {
