@@ -10,16 +10,18 @@
         .header { text-align: center; border-bottom: 2px solid #eee; margin-bottom: 15px; padding-bottom: 10px; }
         .role-badge { background: #333; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
         
-        /* 按鈕排版：相機大、重新整理小 (1/4) */
+        /* 雙按鈕同一排 */
         .btn-row { display: flex; gap: 8px; margin-bottom: 15px; }
-        .btn-reset-row { flex: 0 0 22%; padding: 10px; font-size: 13px; background:#666; color:#fff; border:none; border-radius:8px; cursor:pointer; }
-        .btn-scan { flex: 1; padding: 15px; font-size: 18px; background: #00b900; color: white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; }
+        .btn-row .btn { flex:1; margin:0; padding:12px; font-size:16px; }
         
-        .btn-submit { background: #1a73e8; color: white; margin-top: 10px; width:100%; padding:15px; border:none; border-radius:8px; font-size:18px; font-weight:bold; cursor:pointer; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; margin-bottom: 15px; }
+        .btn-scan { background: #00b900; color: white; }
+        .btn-reset-row { background:#666; color:#fff; }
+        .btn-submit { background: #1a73e8; color: white; margin-top: 10px; }
         .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
         .input-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
         .locked { opacity: 0.4; pointer-events: none; }
         .member-info { background: #fff9c4; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: none; }
         .info-box { background: #e8f0fe; padding: 15px; border-radius: 10px; margin-top: 15px; font-size: 15px; }
@@ -44,7 +46,7 @@
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
         .btn-logout { background:#ff4444; color:#fff; }
     </style>
-    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
 
@@ -81,15 +83,12 @@
         </div>
     </div>
 
-    <!-- 分店：完全隱藏，登入時就選好，這頁不能改 -->
-    <input type="text" id="hiddenBranch" style="display:none;">
-
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
     
-    <!-- 按鈕：重整小 + 相機大 -->
+    <!-- 雙按鈕同一排：重新整理 + 啟動相機 -->
     <div class="btn-row">
-        <button class="btn-reset-row" onclick="resetMember()">🔄 重整</button>
-        <button class="btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機</button>
+        <button class="btn btn-reset-row" onclick="resetMember()">🔄 重新整理</button>
+        <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機</button>
     </div>
 
     <div class="member-info" id="member-ui">
@@ -157,7 +156,7 @@ function logout() {
     window.location.href = "staff_login.html";
 }
 
-// 重新整理 → 只清除會員
+// 重新整理 → 只清除會員，保留店員
 function resetMember() {
     customerId = ""; currentPoints=0; memberLevel=""; levelRate=1;
     document.getElementById("member-ui").style.display = "none";
@@ -263,20 +262,18 @@ async function closeCamera() {
     document.getElementById('cameraContainer').style.display = 'none';
 }
 
-// 初始化：只讀取登入資料，完全不修改分店
-async function init() {
+// ==================== 已刪除多餘的 prompt 輸入姓名！ ====================
+function init() {
     let savedName = localStorage.getItem('staff_name');
-    let savedRole = localStorage.getItem('staff_role') || "夥伴";
     let savedBranch = localStorage.getItem('staff_branch');
+    let savedRole = localStorage.getItem('staff_role') || "夥伴";
 
-    staff.name = savedName;
-    staff.role = savedRole;
-    staff.branch = savedBranch;
-
+    // 完全刪除 prompt，直接使用登入後的資料
+    staff = { name: savedName, branch: savedBranch, role: savedRole };
+    
     document.getElementById('staff-name').innerText = staff.name;
     document.getElementById('role-text').innerText = staff.role;
     document.getElementById('shop-name').innerText = staff.branch;
-
     hideLoading();
     setupScannerListener();
     resetIdleTimer();
@@ -324,8 +321,6 @@ function doCalc() {
 
 async function submitData() {
     if (!customerId) return alert("請先掃描會員！");
-    if (!staff.branch) return alert("請先登入選擇分店！");
-    
     const isTicketMode = document.getElementById('ticketMode').checked;
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
