@@ -118,8 +118,8 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
 let staff = { name: "", branch: "", role: "" };
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0, levelRate: 1 };
-let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
+let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
+let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;  // 🔧 新增 levelRate
 let cameraStream = null;
 let scanInterval = null;
 
@@ -166,8 +166,12 @@ async function onScanSuccess(scannedText) {
             config = data.config;
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
+            // 🔧 問題3修正：接收後端回傳的等級與倍率
             memberLevel = data.member.level || "一般會員";
             levelRate = data.member.levelRate || 1;
+            
+            // 🔧 將等級倍率存入 config 供 doCalc 使用
+            config.levelRate = levelRate;
 
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
@@ -270,14 +274,16 @@ function toggleMode() {
     doCalc();
 }
 
+// 🔧 問題3 & 問題4修正：doCalc 使用正確的等級倍率
 function doCalc() {
     if (!config.earnRate) return;
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
+    const currentLevelRate = config.levelRate || 1;  // 🔧 使用從後端取得的等級倍率
 
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate * config.levelRate);
+        newPts = Math.floor(buy * config.ticketRate * currentLevelRate);  // 🔧 加入等級倍率
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
@@ -286,7 +292,8 @@ function doCalc() {
         document.getElementById('max-hint').innerText = max;
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        newPts = Math.floor((base - redeem) * config.earnRate * config.levelRate);
+        // 🔧 問題4修正：計算公式加入等級倍率
+        newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate);
     }
 
     document.getElementById('new-pts').innerText = newPts;
@@ -313,7 +320,7 @@ async function submitData() {
         buyTicket: Number(document.getElementById('buyTicket').value) || 0,
         earnRate: config.earnRate,
         ticketRate: config.ticketRate,
-        levelRate: config.levelRate
+        levelRate: levelRate  // 🔧 傳送等級倍率到後端
     };
 
     await fetch(GAS_URL, {
