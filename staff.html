@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>老娘領地-店員端系統-T1</title>
+    <title>老娘領地-店員端系統-G</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; background: #f4f7f6; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
@@ -119,8 +119,7 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec"; 
 
 let staff = { name: "", branch: "", role: "" };
-// ✅ 修改：初始化為空值，不寫死任何預設值
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
+let config = { minSpend: 100, maxRate: 0.5, earnRate: 0.05, ticketRate: 0.03, refRate: 0.02 };
 let customerId = "", currentPoints = 0, memberLevel = "一般會員";
 
 let cameraStream = null;
@@ -186,16 +185,6 @@ async function onScanSuccess(scannedText) {
         hideLoading();
         
         if (data.success && data.member) {
-            // ✅ 修改：直接使用後端回傳的 config，不寫備用值
-            if (!data.config) {
-                console.error("❌ 後端未回傳 config！請檢查 GAS 的 getMemberInfo");
-                showModal("系統錯誤：無法讀取參數設定，請聯絡管理員");
-                return;
-            }
-            
-            config = data.config;
-            console.log("✅ 已從後端更新參數:", config);
-            
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
@@ -368,12 +357,6 @@ function toggleMode() {
 }
 
 function doCalc() {
-    // ✅ 修改：如果 config 無效，直接返回不計算
-    if (!config.earnRate || config.earnRate === 0) {
-        console.warn("⚠️ doCalc: config 尚未從後端載入，無法計算");
-        return;
-    }
-    
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
     if (isTicket) {
@@ -393,18 +376,9 @@ function doCalc() {
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
 }
 
-// ==================== 提交函數 ====================
+// ==================== ✅ 修好：提交函數 ====================
 async function submitData() {
-  if (!customerId) {
-      alert("❌ 請先掃描會員條碼！");
-      return;
-  }
-  
-  // ✅ 修改：如果 config 無效，阻止提交
-  if (!config.earnRate || config.earnRate === 0) {
-      alert("⚠️ 系統參數尚未載入，請重新掃描會員條碼");
-      return;
-  }
+  if (!customerId) return alert("❌ 請先掃描會員！");
 
   const isTicketMode = document.getElementById('ticketMode').checked;
   const btn = document.getElementById('submitBtn');
