@@ -264,7 +264,7 @@ async function onScanSuccess(scannedText) {
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
             levelRate = data.member.levelRate || 1;
-            config.levelRate = levelRate;
+            config.levelRate = data.member.levelRate;  // ← 確認這行存在
 
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
