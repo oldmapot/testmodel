@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>老娘領地-店員端系統-G</title>
+    <title>老娘領地-店員端系統</title>
     <style>
         body { font-family: "Microsoft JhengHei", sans-serif; padding: 15px; background: #f4f7f6; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; margin: auto; }
@@ -118,8 +118,8 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
 let staff = { name: "", branch: "", role: "" };
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0, levelRate: 1 };
-let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
+let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
+let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1, customerTotalSpend = 0;
 let cameraStream = null;
 let scanInterval = null;
 
@@ -163,20 +163,27 @@ async function onScanSuccess(scannedText) {
         const data = await res.json();
         hideLoading();
         if (data.success && data.member) {
+            // 儲存設定與會員資訊
             config = data.config;
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
             levelRate = data.member.levelRate || 1;
+            customerTotalSpend = data.member.totalSpend || 0;
 
+            // 顯示會員資訊
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
             document.getElementById('cus-name').innerText = data.member.name;
             document.getElementById('member-level').innerText = memberLevel;
             document.getElementById('cus-pts').innerText = currentPoints;
-            document.getElementById('cus-total').innerText = data.member.totalSpend || 0;
-            document.getElementById('totalSpend').focus();
+            document.getElementById('cus-total').innerText = customerTotalSpend;
+            
+            // 重新計算顯示
             doCalc();
+            
+            // 聚焦到消費金額輸入框
+            document.getElementById('totalSpend').focus();
         } else {
             showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
         }
@@ -271,26 +278,52 @@ function toggleMode() {
 }
 
 function doCalc() {
-    if (!config.earnRate) return;
+    // 確保 config 有值
+    if (!config.earnRate || config.earnRate === 0) {
+        // 如果還沒抓到設定，先不計算
+        return;
+    }
+    
     const isTicket = document.getElementById('ticketMode').checked;
-    let newPts = 0, redeem = 0;
+    let newPts = 0;
+    let redeem = 0;
+    let afterPts = currentPoints;
 
     if (isTicket) {
+        // 餐券模式：購買金額 × 餐券回饋率 × 等級倍率
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate * config.levelRate);
+        newPts = Math.floor(buy * (config.ticketRate || 0) * levelRate);
+        afterPts = currentPoints + newPts;
     } else {
+        // 一般消費模式
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
-        const base = total - ticket;
-        const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
-        document.getElementById('max-hint').innerText = max;
-        redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
+        const base = total - ticket; // 實付金額
+        
+        // 可折抵上限：消費門檻檢查、不超過當前點數、不超過實付金額 × 折抵率上限
+        let maxRedeem = 0;
+        if (base >= config.minSpend) {
+            maxRedeem = Math.min(currentPoints, Math.floor(base * (config.maxRate || 0)));
+        }
+        document.getElementById('max-hint').innerText = maxRedeem;
+        
+        redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, maxRedeem);
         document.getElementById('redeemAmount').value = redeem;
-        newPts = Math.floor((base - redeem) * config.earnRate * config.levelRate);
+        
+        // 計算新增點數：(實付金額 - 折抵點數) × 回饋率 × 等級倍率
+        const baseForPoints = base - redeem;
+        if (baseForPoints > 0) {
+            newPts = Math.floor(baseForPoints * (config.earnRate || 0) * levelRate);
+        } else {
+            newPts = 0;
+        }
+        
+        afterPts = currentPoints - redeem + newPts;
     }
 
+    // 更新顯示
     document.getElementById('new-pts').innerText = newPts;
-    document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
+    document.getElementById('after-pts').innerText = afterPts;
 }
 
 async function submitData() {
@@ -313,7 +346,7 @@ async function submitData() {
         buyTicket: Number(document.getElementById('buyTicket').value) || 0,
         earnRate: config.earnRate,
         ticketRate: config.ticketRate,
-        levelRate: config.levelRate
+        levelRate: levelRate
     };
 
     await fetch(GAS_URL, {
