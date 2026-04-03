@@ -198,7 +198,8 @@ async function onScanSuccess(scannedText) {
             customerId = data.member.userId;
             currentPoints = data.member.points || 0;
             memberLevel = data.member.level || "一般會員";
-            memberLevelRate = data.member.levelRate || 1;  //接收會員等級
+            memberLevelRate = Number(data.member.levelRate) || 1; //接收會員等級
+            console.log("偵測到會員等級:", memberLevel, "套用倍率:", memberLevelRate);
             
             document.getElementById('member-ui').style.display = 'block';
             document.getElementById('form-ui').classList.remove('locked');
@@ -368,14 +369,11 @@ function toggleMode() {
 }
 
 function doCalc() {
-    // ✅ 修改3：如果 config 無效，直接返回不計算
-    if (!config.earnRate || config.earnRate === 0) {
-        console.warn("⚠️ doCalc: config 尚未從後端載入，無法計算");
-        return;
-    }
+    if (!config.earnRate || config.earnRate === 0) return;
     
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0;
+
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
         newPts = Math.floor(buy * config.ticketRate);
@@ -383,12 +381,17 @@ function doCalc() {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
         const base = total - ticket;
+        
+        // 折抵上限計算
         const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
         document.getElementById('max-hint').innerText = max;
+        
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
         document.getElementById('redeemAmount').value = redeem;
-        var levelRate = memberLevelRate || 1;
-newPts = Math.floor((base - redeem) * config.earnRate * levelRate);
+
+        // 【修正核心公式】
+        // 點數 = (淨消費額) * 基礎集點率 * 會員等級倍率
+        newPts = Math.floor((base - redeem) * config.earnRate * memberLevelRate);
     }
     document.getElementById('new-pts').innerText = newPts;
     document.getElementById('after-pts').innerText = currentPoints - redeem + newPts;
