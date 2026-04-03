@@ -157,7 +157,7 @@
             padding: 12px;
             border-radius: 12px;
             margin-top: 20px;
-            font-size: 12px;
+            font-size: 16px;
             color: #666;
             text-align: left;
         }
@@ -211,9 +211,9 @@
         <form id="loginForm" onsubmit="handleLogin(event)">
             <div class="input-group">
                 <label>📱 登入帳號</label>
-                <input type="text" id="userId" placeholder="請輸入帳號（短碼/Token/LINE ID）" required autocomplete="off">
+                <input type="text" id="userId" placeholder="請輸入帳號" required autocomplete="off">
                 <div style="font-size: 11px; color: #999; margin-top: 5px;">
-                    💡 支援三種帳號：自訂短碼 / Device Token / LINE User ID
+                    
                 </div>
             </div>
             
@@ -233,9 +233,9 @@
         
         <div class="demo-hint">
             <strong>💡 登入說明：</strong><br>
-            • 老娘夥伴限定登入<br>
-            • 密碼請向管理員索取
-            
+            • 老娘夥伴限定登入，閒雜人等速速離開<br>
+            • 忘記密碼請聯絡管理員
+        </div>
         
         <div class="footer-note">
             © 老娘領地 點數系統
@@ -274,7 +274,6 @@
             
             try {
                 // 呼叫 GAS 驗證店員身分
-                // 後端支援三種帳號：L欄自訂帳號 / F欄Device Token / B欄LINE User ID
                 const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}`;
                 const response = await fetch(verifyUrl);
                 const result = await response.json();
@@ -286,8 +285,8 @@
                     
                     loginBtn.innerHTML = '✅ 驗證成功，進入系統...';
                     
-                    // 跳轉到 staff.html 並帶入參數
-                    const staffPageUrl = `staff.html?userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&branch=${encodeURIComponent(result.branch || '')}&role=${encodeURIComponent(result.role || '')}`;
+                    // ✅ 修正：跳轉時帶入 name、branch、role 參數（讓 staff.html 直接顯示店員姓名）
+                    const staffPageUrl = `staff.html?name=${encodeURIComponent(result.name)}&branch=${encodeURIComponent(result.branch || '')}&role=${encodeURIComponent(result.role || '')}`;
                     
                     setTimeout(() => {
                         window.location.href = staffPageUrl;
