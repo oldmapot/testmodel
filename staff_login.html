@@ -324,7 +324,6 @@
                 const data = await res.json();
                 return data.success ? data.shops : [];
             } catch (e) {
-                console.error("取得分店清單失敗:", e);
                 return [];
             }
         }
@@ -338,25 +337,14 @@
             
             const select = document.getElementById('branchSelect');
             select.innerHTML = '<option value="">-- 請選擇分店 --</option>';
-            if (branches.length > 0) {
-                branches.forEach(b => {
-                    const option = document.createElement('option');
-                    option.value = b;
-                    option.textContent = b;
-                    select.appendChild(option);
-                });
-            } else {
-                // 如果沒有分店資料，提供預設選項
-                const option = document.createElement('option');
-                option.value = "老娘鍋(河堤店)";
-                option.textContent = "老娘鍋(河堤店)";
-                select.appendChild(option);
-            }
+            branches.forEach(b => {
+                select.innerHTML += `<option value="${b}">${b}</option>`;
+            });
             
             document.getElementById('branchModal').style.display = 'flex';
         }
 
-        // ✅ 確認分店並跳轉（帶入 loginId 供登出使用）
+        // 確認分店
         function confirmBranch() {
             const branch = document.getElementById('branchSelect').value;
             if (!branch) {
@@ -364,8 +352,8 @@
                 return;
             }
 
-            // 跳轉並傳遞 姓名 + 分店 + loginId（讓 staff.html 可以記錄登出）
-            const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(currentStaff.loginId)}&role=${encodeURIComponent(currentStaff.role || '')}`;
+            // 跳轉並傳遞 姓名 + 分店
+            const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}`;
             window.location.href = url;
         }
         
@@ -392,15 +380,8 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    // ✅ 儲存完整的登入資訊（包含 loginId）
-                    currentStaff = {
-                        name: result.name,
-                        role: result.role || "夥伴",
-                        loginId: result.loginId || userId
-                    };
-                    
                     // 驗證通過 → 強制彈窗選擇分店
-                    await showBranchModal(currentStaff);
+                    await showBranchModal({ name: result.name });
                     
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '登入系統';
