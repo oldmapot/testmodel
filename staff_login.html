@@ -311,19 +311,27 @@
         
         let currentStaff = null; // 儲存登入者資訊
         
-        // ✅ 產生設備唯一 ID（Device Token）
-        function getDeviceId() {
-            let deviceId = localStorage.getItem('device_id');
-            if (!deviceId) {
-                // 使用多種資訊組合產生唯一 ID
-                const screenInfo = `${screen.width}x${screen.height}`;
-                const timeStamp = Date.now();
-                const randomStr = Math.random().toString(36).substring(2, 15);
-                deviceId = btoa(`${screenInfo}_${timeStamp}_${randomStr}`).substring(0, 32);
-                localStorage.setItem('device_id', deviceId);
-            }
-            return deviceId;
-        }
+        // 產生設備唯一 ID（Device Token）
+function getDeviceId() {
+    let deviceId = localStorage.getItem('device_id');
+    if (!deviceId) {
+        const screenInfo = `${screen.width}x${screen.height}`;
+        const timeStamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 15);
+        deviceId = btoa(`${screenInfo}_${timeStamp}_${randomStr}`).substring(0, 32);
+        localStorage.setItem('device_id', deviceId);
+    }
+    return deviceId;
+}
+
+// 取得設備名稱
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    if (ua.indexOf('iPhone') > -1) return 'iPhone';
+    if (ua.indexOf('iPad') > -1) return 'iPad';
+    if (ua.indexOf('Android') > -1) return 'Android Phone';
+    return 'Unknown Device';
+}
         
         function togglePassword() {
             const passwordInput = document.getElementById('keyword');
@@ -378,7 +386,9 @@
             const keyword = document.getElementById('keyword').value.trim();
             const loginBtn = document.getElementById('loginBtn');
             const errorMsgDiv = document.getElementById('errorMsg');
-            
+            const deviceId = getDeviceId();
+const deviceName = getDeviceName();
+const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}`;
             if (!userId || !keyword) {
                 showError('請輸入完整的帳號和密碼');
                 return;
