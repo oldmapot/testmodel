@@ -171,7 +171,49 @@ function resetIdleTimer() {
 document.addEventListener("mousemove", resetIdleTimer);
 document.addEventListener("keydown", resetIdleTimer);
 document.addEventListener("click", resetIdleTimer);
+// 1. 修正後的登入函數 (放在 staff_login.html 的腳本中)
+function performLogin() {
+    let userId = document.getElementById('userId').value;
+    let password = document.getElementById('password').value;
+    let branch = document.getElementById('branchSelect').value; 
 
+    // 這裡的 API_URL 請確保已經定義，或直接填入你的 GAS 網址
+    let url = `${API_URL}?action=staffLogin&userId=${userId}&keyword=${password}&branch=${encodeURIComponent(branch)}`;
+    
+    showLoading("登入中...");
+    fetch(url).then(res => res.json()).then(data => {
+        hideLoading();
+        if(data.success) {
+            // 重點：跳轉時一定要帶上 loginId，後面的 logout 才抓得到是誰要登出
+            window.location.href = `index.html?name=${encodeURIComponent(data.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(userId)}`;
+        } else {
+            alert(data.message);
+        }
+    }).catch(e => alert("登入連線失敗"));
+}
+
+// 2. 修正後的登出函數 (放在 index.html 的腳本中)
+// 注意：請確保這個檔案裡只有一個 logout 函數
+async function logout() {
+    const loginId = getUrlParam('loginId'); 
+    
+    if (loginId) {
+        showLoading("正在紀錄登出時間...");
+        try {
+            // 這裡的網址請替換成你實際的 GAS Web App 網址
+            const url = `${API_URL}?action=staffLogout&loginId=${encodeURIComponent(loginId)}`;
+            
+            // 使用 await 確保發送成功後才跳轉頁面
+            await fetch(url, { mode: 'no-cors' }); 
+        } catch (e) {
+            console.error("登出紀錄回傳失敗", e);
+        }
+    }
+    
+    // 執行跳轉
+    isLoggedIn = false;
+    window.location.href = 'staff_login.html';
+}
 function showLoading(text) { const el = document.getElementById('loadingText'); if (text) el.innerText = text; document.getElementById('loadingOverlay').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 function showModal(html) { document.getElementById('modalText').innerHTML = html; document.getElementById('customModal').style.display = 'flex'; }
@@ -183,12 +225,6 @@ function showToast(msg) {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
 }
-
-// 登出
-function logout() {
-    window.location.href = 'staff_login.html';
-}
-
 // 重新整理 → 只清除會員
 function resetMember() {
     customerId = ""; currentPoints=0; memberLevel=""; levelRate=1;
