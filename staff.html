@@ -45,19 +45,20 @@
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
         .btn-logout { background:#ff4444; color:#fff; }
         
-        /* 登入彈窗 */
-        .login-modal .modal-content { max-width: 380px; }
-        .login-modal input, .login-modal select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-            font-size: 16px;
-            margin: 10px 0;
-            box-sizing: border-box;
-        }
-        .login-modal .error-msg { color: red; font-size: 13px; margin-top: 5px; display: none; }
-        .shop-select-container { margin-top: 15px; display: none; }
+        /* 登入畫面 */
+        .login-container { max-width: 400px; margin: 50px auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+        .login-container h2 { text-align: center; color: #1a73e8; margin-bottom: 25px; }
+        .login-container input { width: 100%; padding: 14px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+        .login-container button { width: 100%; padding: 14px; background: #00b900; color: white; border: none; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .login-container .error-msg { color: red; font-size: 14px; text-align: center; margin-top: 10px; display: none; }
+        
+        /* 分店選擇彈窗 */
+        .shop-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 30000; display: none; justify-content: center; align-items: center; }
+        .shop-modal-content { background: white; width: 85%; max-width: 380px; border-radius: 20px; padding: 25px; text-align: center; }
+        .shop-modal-content h3 { color: #1a73e8; margin-bottom: 20px; }
+        .shop-modal-content select { width: 100%; padding: 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; margin-bottom: 20px; }
+        .shop-modal-content button { width: 100%; padding: 14px; background: #00b900; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .shop-modal-content .staff-info { background: #f0f0f0; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 16px; color: #333; }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -65,7 +66,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
+    <div class="loading-text" id="loadingText">老娘正在火速趕來...</div>
 </div>
 
 <div id="customModal">
@@ -85,12 +86,34 @@
     </div>
 </div>
 
-<div class="card">
+<!-- 登入畫面 -->
+<div id="loginContainer" class="login-container">
+    <h2>👩‍🍳 店員登入</h2>
+    <input type="text" id="loginAccount" placeholder="請輸入帳號">
+    <input type="password" id="loginPassword" placeholder="請輸入密碼">
+    <div id="loginError" class="error-msg"></div>
+    <button id="doLoginBtn">登入</button>
+</div>
+
+<!-- 分店選擇彈窗（登入成功後跳出） -->
+<div id="shopModal" class="shop-modal">
+    <div class="shop-modal-content">
+        <h3>🏪 選擇分店</h3>
+        <div id="staffInfoDisplay" class="staff-info"></div>
+        <select id="shopSelect">
+            <option value="">-- 請選擇分店 --</option>
+        </select>
+        <button id="confirmShopBtn">確認登入</button>
+    </div>
+</div>
+
+<!-- 主畫面（登入成功後顯示） -->
+<div id="mainUI" class="card" style="display:none;">
     <div class="header">
         <div class="header-top">
             <button class="header-btn btn-logout" onclick="logout()">登出</button>
         </div>
-        <h2 style="margin:0;"><span id="shop-name">請先登入</span></h2>
+        <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
         <div style="font-size:14px; color:#666; margin-top:5px;">
             <span id="role-text" class="role-badge">夥伴</span>：<span id="staff-name">-</span>
         </div>
@@ -98,7 +121,6 @@
 
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
     
-    <!-- 按鈕列：開啟相機 + 重新整理 -->
     <div class="button-row">
         <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 開啟相機 / 準備掃碼槍</button>
         <button class="btn-reset" onclick="resetMember()">重新整理</button>
@@ -147,13 +169,12 @@
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
-let staff = { name: "", branch: "", role: "夥伴", loginId: "" };
+let staff = { name: "", branch: "", role: "使用者", loginId: "" };
 let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
 let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
 let isLoggedIn = false;
-let shopListCache = [];
 
 // 5分鐘閒置登出
 let idleTimer;
@@ -181,11 +202,9 @@ function showToast(msg) {
 // 從 GAS 取得分店清單 (讀取「店面資訊」分頁的 B1, C1, D1...)
 async function fetchShopListFromGAS() {
     try {
-        // 透過新增的 getShopList API 讀取分店資料
         const response = await fetch(`${GAS_URL}?action=getShopList&t=${Date.now()}`);
         const data = await response.json();
         if (data.success && data.shops) {
-            shopListCache = data.shops;
             return data.shops;
         }
         return [];
@@ -208,113 +227,84 @@ async function staffLogin(account, password) {
     }
 }
 
-// 顯示登入彈窗
-function showLoginModal() {
-    const modalHtml = `
-        <div style="text-align:center;">
-            <h3 style="color:#1a73e8; margin-bottom:20px;">👩‍🍳 店員登入</h3>
-            <input type="text" id="loginAccount" placeholder="請輸入帳號" autocomplete="off">
-            <input type="password" id="loginPassword" placeholder="請輸入密碼" autocomplete="off">
-            <div id="loginError" class="error-msg"></div>
-            <div id="shopSelectContainer" class="shop-select-container">
-                <label style="display:block; text-align:left; font-weight:bold; margin-top:10px;">選擇分店 *</label>
-                <select id="shopSelect">
-                    <option value="">-- 請選擇分店 --</option>
-                </select>
-            </div>
-            <button id="loginBtn" style="background:#00b900; color:white; border:none; padding:14px; border-radius:8px; width:100%; font-size:16px; font-weight:bold; margin-top:20px; cursor:pointer;">下一步</button>
-        </div>
-    `;
+// 顯示分店選擇彈窗
+async function showShopSelectModal(staffData) {
+    // 載入分店清單
+    showLoading("載入分店清單...");
+    const shops = await fetchShopListFromGAS();
+    hideLoading();
     
-    const modalOverlay = document.createElement('div');
-    modalOverlay.id = 'staffLoginOverlay';
-    modalOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:20000; display:flex; justify-content:center; align-items:center;';
-    const modalCard = document.createElement('div');
-    modalCard.style.cssText = 'background:white; width:90%; max-width:400px; border-radius:20px; padding:25px;';
-    modalCard.className = 'login-modal';
-    modalCard.innerHTML = modalHtml;
-    modalOverlay.appendChild(modalCard);
-    document.body.appendChild(modalOverlay);
+    if (shops.length === 0) {
+        alert("無法載入分店清單，請聯絡管理員");
+        return false;
+    }
     
-    let verifiedStaffData = null;
-    let step = 'login';
+    // 顯示店員資訊
+    document.getElementById('staffInfoDisplay').innerHTML = `👤 店員：${staffData.name}<br>📋 職稱：${staffData.role || "夥伴"}`;
     
-    const accountInput = document.getElementById('loginAccount');
-    const passwordInput = document.getElementById('loginPassword');
-    const errorDiv = document.getElementById('loginError');
-    const shopContainer = document.getElementById('shopSelectContainer');
+    // 填入分店選單
     const shopSelect = document.getElementById('shopSelect');
-    const loginBtn = document.getElementById('loginBtn');
+    shopSelect.innerHTML = '<option value="">-- 請選擇分店 --</option>';
+    shops.forEach(shop => {
+        shopSelect.innerHTML += `<option value="${shop}">${shop}</option>`;
+    });
     
-    loginBtn.addEventListener('click', async () => {
-        if (step === 'login') {
-            const account = accountInput.value.trim();
-            const password = passwordInput.value.trim();
-            
-            if (!account || !password) {
-                errorDiv.innerText = '請輸入帳號和密碼';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            errorDiv.style.display = 'none';
-            showLoading("驗證帳號中...");
-            
-            const result = await staffLogin(account, password);
-            hideLoading();
-            
-            if (result.success) {
-                verifiedStaffData = {
-                    name: result.name,
-                    branch: result.branch,
-                    role: result.role || "夥伴",
-                    loginId: result.loginId
-                };
-                
-                // 帳號驗證成功，載入分店清單
-                showLoading("載入分店清單...");
-                const shops = await fetchShopListFromGAS();
-                hideLoading();
-                
-                if (shops.length === 0) {
-                    errorDiv.innerText = '無法載入分店清單，請聯絡管理員';
-                    errorDiv.style.display = 'block';
-                    return;
-                }
-                
-                // 填入分店選單
-                shopSelect.innerHTML = '<option value="">-- 請選擇分店 --</option>';
-                shops.forEach(shop => {
-                    shopSelect.innerHTML += `<option value="${shop}">${shop}</option>`;
-                });
-                
-                // 切換到分店選擇畫面
-                accountInput.style.display = 'none';
-                passwordInput.style.display = 'none';
-                shopContainer.style.display = 'block';
-                loginBtn.innerText = '確認登入';
-                step = 'shopSelect';
-            } else {
-                errorDiv.innerText = result.message || '帳號或密碼錯誤';
-                errorDiv.style.display = 'block';
-            }
-        } else if (step === 'shopSelect') {
+    // 顯示彈窗
+    const modal = document.getElementById('shopModal');
+    modal.style.display = 'flex';
+    
+    // 等待使用者選擇
+    return new Promise((resolve) => {
+        const confirmBtn = document.getElementById('confirmShopBtn');
+        const handleConfirm = () => {
             const selectedShop = shopSelect.value;
-            
             if (!selectedShop) {
-                errorDiv.innerText = '請選擇分店';
-                errorDiv.style.display = 'block';
+                alert("請選擇分店");
                 return;
             }
-            
-            errorDiv.style.display = 'none';
-            
+            modal.style.display = 'none';
+            confirmBtn.removeEventListener('click', handleConfirm);
+            resolve(selectedShop);
+        };
+        confirmBtn.addEventListener('click', handleConfirm);
+    });
+}
+
+// 登入流程
+async function handleLogin() {
+    const account = document.getElementById('loginAccount').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    const errorDiv = document.getElementById('loginError');
+    
+    if (!account || !password) {
+        errorDiv.innerText = '請輸入帳號和密碼';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    errorDiv.style.display = 'none';
+    showLoading("驗證帳號中...");
+    
+    const result = await staffLogin(account, password);
+    hideLoading();
+    
+    if (result.success) {
+        // 帳號密碼正確，彈出分店選擇視窗
+        const staffData = {
+            name: result.name,
+            role: result.role || "使用者",
+            loginId: result.loginId
+        };
+        
+        const selectedShop = await showShopSelectModal(staffData);
+        
+        if (selectedShop) {
             // 完成登入
             staff = {
-                name: verifiedStaffData.name,
+                name: staffData.name,
                 branch: selectedShop,
-                role: verifiedStaffData.role,
-                loginId: verifiedStaffData.loginId
+                role: staffData.role,
+                loginId: staffData.loginId
             };
             
             localStorage.setItem('staff_name', staff.name);
@@ -326,25 +316,34 @@ function showLoginModal() {
             document.getElementById('role-text').innerText = staff.role;
             document.getElementById('shop-name').innerText = staff.branch;
             
+            // 切換畫面
+            document.getElementById('loginContainer').style.display = 'none';
+            document.getElementById('mainUI').style.display = 'block';
+            
             isLoggedIn = true;
-            document.body.removeChild(modalOverlay);
             setupScannerListener();
             resetIdleTimer();
             showToast(`✅ 歡迎 ${staff.name} 登入 ${staff.branch}`);
         }
-    });
+    } else {
+        errorDiv.innerText = result.message || '帳號或密碼錯誤';
+        errorDiv.style.display = 'block';
+    }
 }
 
 // 登出
 function logout() {
     isLoggedIn = false;
     localStorage.clear();
-    staff = { name: "", branch: "", role: "夥伴", loginId: "" };
-    document.getElementById('staff-name').innerText = "-";
-    document.getElementById('shop-name').innerText = "請先登入";
+    staff = { name: "", branch: "", role: "使用者", loginId: "" };
+    
+    // 重置畫面
+    document.getElementById('loginContainer').style.display = 'block';
+    document.getElementById('mainUI').style.display = 'none';
+    document.getElementById('loginAccount').value = '';
+    document.getElementById('loginPassword').value = '';
     document.getElementById('member-ui').style.display = "none";
     document.getElementById('form-ui').classList.add("locked");
-    showLoginModal();
 }
 
 // 重新整理 → 只清除會員，保留店員
@@ -464,21 +463,26 @@ async function closeCamera() {
 function init() {
     let savedName = localStorage.getItem('staff_name');
     let savedBranch = localStorage.getItem('staff_branch');
-    let savedRole = localStorage.getItem('staff_role') || "夥伴";
+    let savedRole = localStorage.getItem('staff_role') || "使用者";
     let savedLoginId = localStorage.getItem('staff_loginId');
     
-    if (!savedName || !savedBranch) {
-        showLoginModal();
-    } else {
+    if (savedName && savedBranch) {
+        // 已有登入紀錄，直接顯示主畫面
         staff = { name: savedName, branch: savedBranch, role: savedRole, loginId: savedLoginId };
         document.getElementById('staff-name').innerText = staff.name;
         document.getElementById('role-text').innerText = staff.role;
         document.getElementById('shop-name').innerText = staff.branch;
+        document.getElementById('loginContainer').style.display = 'none';
+        document.getElementById('mainUI').style.display = 'block';
         isLoggedIn = true;
-        hideLoading();
         setupScannerListener();
         resetIdleTimer();
+    } else {
+        // 顯示登入畫面
+        document.getElementById('loginContainer').style.display = 'block';
+        document.getElementById('mainUI').style.display = 'none';
     }
+    hideLoading();
 }
 
 function setupScannerListener() {
@@ -530,7 +534,7 @@ async function submitData() {
     const isTicketMode = document.getElementById('ticketMode').checked;
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    showLoading("處理中...");
+    showLoading("處理中...保持微笑");
 
     const payload = {
         action: "addPoints", customerId: customerId, branch: staff.branch,
@@ -544,10 +548,17 @@ async function submitData() {
 
     await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
     hideLoading();
-    alert("✅ 作業完成");
+    alert("✅ 集點作業完成");
     resetMember();
     btn.disabled = false;
 }
+
+// 綁定登入按鈕
+document.getElementById('doLoginBtn').addEventListener('click', handleLogin);
+// 按 Enter 登入
+document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleLogin();
+});
 
 init();
 </script>
