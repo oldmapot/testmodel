@@ -36,11 +36,52 @@
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
         
-        /* 只有這裡微調，完全不影響下方 */
+        /* 重新整理按鈕與掃描按鈕的佈局 */
+        .button-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .btn-scan {
+            flex: 3;
+            margin-bottom: 0;
+        }
+        .btn-reset {
+            flex: 1;
+            background: #666;
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
         .header-top { display: flex; justify-content: flex-end; gap:6px; margin-bottom:5px; }
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
-        .btn-reset { background:#666; color:#fff; }
         .btn-logout { background:#ff4444; color:#fff; }
+        
+        /* 店員登入彈窗 */
+        .staff-login-modal .modal-content { max-width: 380px; }
+        .staff-login-modal select, .staff-login-modal input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        .staff-name-display {
+            background: #f0f0f0;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -70,9 +111,7 @@
 
 <div class="card">
     <div class="header">
-        <!-- 按鈕藏在標題右上方，超美觀 -->
         <div class="header-top">
-            <button class="header-btn btn-reset" onclick="resetMember()">重新整理</button>
             <button class="header-btn btn-logout" onclick="logout()">登出</button>
         </div>
         <h2 style="margin:0;"><span id="shop-name">老娘領地</span></h2>
@@ -82,7 +121,12 @@
     </div>
 
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
-    <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 啟動相機掃描 / 準備掃碼槍</button>
+    
+    <!-- 按鈕列：開啟相機 + 重新整理（大小約1/4） -->
+    <div class="button-row">
+        <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 開啟相機 / 準備掃碼槍</button>
+        <button class="btn-reset" onclick="resetMember()">重新整理</button>
+    </div>
 
     <div class="member-info" id="member-ui">
         顧客：<b id="cus-name">-</b> <span id="member-level" class="member-level"></span><br>
@@ -127,6 +171,26 @@
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
+// 店員管理資料 (模擬從「店員管理」分頁讀取)
+const STAFF_DATA = {
+    "張心瑜": { name: "張心瑜", role: "店長" },
+    "王美華": { name: "王美華", role: "副店長" },
+    "李淑芬": { name: "李淑芬", role: "正職夥伴" },
+    "陳雅婷": { name: "陳雅婷", role: "兼職夥伴" }
+};
+
+// 從「店面資訊」分頁讀取分店清單 (B1, C1, D1... 遇到空值停止)
+function getShopListFromSheet() {
+    // 模擬從 Google Sheets 或資料庫讀取的店面資訊
+    // 實際串接時可替換為 fetch API 讀取試算表資料
+    return [
+        "老娘鍋(河堤店)",
+        "老娘鍋(巨蛋店)",
+        "老娘鍋(三多店)",
+        "老娘鍋(左營店)"
+    ];
+}
+
 let staff = { name: "", branch: "", role: "" };
 let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
 let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
@@ -146,7 +210,92 @@ document.addEventListener("click", resetIdleTimer);
 // 登出
 function logout() {
     localStorage.clear();
-    window.location.href = "staff_login.html";
+    // 重新顯示登入畫面
+    showStaffLoginModal();
+}
+
+// 顯示店員登入彈窗 (選擇分店 + 選擇店員)
+function showStaffLoginModal() {
+    const shopList = getShopListFromSheet();
+    const staffOptions = Object.keys(STAFF_DATA).map(name => 
+        `<option value="${name}">${name} (${STAFF_DATA[name].role})</option>`
+    ).join('');
+    
+    const modalHtml = `
+        <div style="text-align:center;">
+            <h3 style="color:#1a73e8; margin-bottom:20px;">👩‍🍳 店員登入</h3>
+            <label style="display:block; text-align:left; font-weight:bold;">選擇分店 *</label>
+            <select id="shopSelect" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin-bottom:20px;">
+                <option value="">-- 請選擇分店 --</option>
+                ${shopList.map(shop => `<option value="${shop}">${shop}</option>`).join('')}
+            </select>
+            <label style="display:block; text-align:left; font-weight:bold;">選擇店員 *</label>
+            <select id="staffSelect" style="width:100%; padding:12px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;">
+                <option value="">-- 請選擇店員 --</option>
+                ${staffOptions}
+            </select>
+            <div id="staffNameDisplay" class="staff-name-display" style="display:none;"></div>
+            <button id="loginConfirmBtn" style="background:#00b900; color:white; border:none; padding:14px; border-radius:8px; width:100%; font-size:16px; font-weight:bold; margin-top:10px; cursor:pointer;">確認登入</button>
+        </div>
+    `;
+    
+    // 建立自訂彈窗
+    const modalOverlay = document.createElement('div');
+    modalOverlay.id = 'staffLoginOverlay';
+    modalOverlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:20000; display:flex; justify-content:center; align-items:center;';
+    const modalCard = document.createElement('div');
+    modalCard.style.cssText = 'background:white; width:90%; max-width:400px; border-radius:20px; padding:25px;';
+    modalCard.innerHTML = modalHtml;
+    modalOverlay.appendChild(modalCard);
+    document.body.appendChild(modalOverlay);
+    
+    // 店員選擇變更時，顯示店員姓名（登入後直接帶入，不需再輸入）
+    const staffSelect = document.getElementById('staffSelect');
+    const nameDisplay = document.getElementById('staffNameDisplay');
+    staffSelect.addEventListener('change', function() {
+        const selectedName = this.value;
+        if (selectedName && STAFF_DATA[selectedName]) {
+            nameDisplay.style.display = 'block';
+            nameDisplay.innerHTML = `👤 已選擇：${STAFF_DATA[selectedName].name} (${STAFF_DATA[selectedName].role})<br><span style="font-size:12px; color:#666;">登入後將自動帶入此姓名</span>`;
+        } else {
+            nameDisplay.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('loginConfirmBtn').addEventListener('click', () => {
+        const selectedShop = document.getElementById('shopSelect').value;
+        const selectedStaffName = document.getElementById('staffSelect').value;
+        
+        if (!selectedShop) {
+            alert('請選擇分店');
+            return;
+        }
+        if (!selectedStaffName || !STAFF_DATA[selectedStaffName]) {
+            alert('請選擇店員');
+            return;
+        }
+        
+        // 儲存登入資訊
+        staff = {
+            name: STAFF_DATA[selectedStaffName].name,
+            branch: selectedShop,
+            role: STAFF_DATA[selectedStaffName].role
+        };
+        localStorage.setItem('staff_name', staff.name);
+        localStorage.setItem('staff_branch', staff.branch);
+        localStorage.setItem('staff_role', staff.role);
+        
+        // 更新畫面顯示
+        document.getElementById('staff-name').innerText = staff.name;
+        document.getElementById('role-text').innerText = staff.role;
+        document.getElementById('shop-name').innerText = staff.branch;
+        
+        // 關閉登入彈窗
+        document.body.removeChild(modalOverlay);
+        hideLoading();
+        setupScannerListener();
+        resetIdleTimer();
+    });
 }
 
 // 重新整理 → 只清除會員，保留店員
@@ -166,9 +315,17 @@ function resetMember() {
     document.getElementById("max-hint").innerText="0";
     document.getElementById("ticketMode").checked=false;
     toggleMode();
+    showToast("✅ 已清除會員資料");
 }
 
-// ========== 以下「完全沒動」你原本的程式 ==========
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.innerText = msg;
+    toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.8); color:white; padding:10px 20px; border-radius:30px; z-index:30000; font-size:14px;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+}
+
 function showLoading(text) { const el = document.getElementById('loadingText'); if (text) el.innerText = text; document.getElementById('loadingOverlay').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 function showModal(html) { document.getElementById('modalText').innerHTML = html; document.getElementById('customModal').style.display = 'flex'; }
@@ -223,6 +380,10 @@ async function onScanSuccess(scannedText) {
 }
 
 async function openCamera() {
+    if (!staff.name || !staff.branch) {
+        alert("請先登入");
+        return;
+    }
     try {
         if (cameraStream) await closeCamera();
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: 1280, height: 720 } });
@@ -260,21 +421,25 @@ function init() {
     let savedName = localStorage.getItem('staff_name');
     let savedBranch = localStorage.getItem('staff_branch');
     let savedRole = localStorage.getItem('staff_role') || "夥伴";
+    
     if (!savedName || !savedBranch) {
-        savedName = prompt("請輸入店員姓名：");
-        savedBranch = prompt("請輸入分店：", "老娘鍋(河堤店)");
-        if (!savedName || !savedBranch) { alert("必填"); return; }
-        localStorage.setItem('staff_name', savedName);
-        localStorage.setItem('staff_branch', savedBranch);
-        localStorage.setItem('staff_role', savedRole);
+        // 未登入，顯示登入彈窗
+        showStaffLoginModal();
+    } else {
+        // 檢查分店是否仍在有效清單中
+        const validShops = getShopListFromSheet();
+        if (!validShops.includes(savedBranch)) {
+            showStaffLoginModal();
+            return;
+        }
+        staff = { name: savedName, branch: savedBranch, role: savedRole };
+        document.getElementById('staff-name').innerText = staff.name;
+        document.getElementById('role-text').innerText = staff.role;
+        document.getElementById('shop-name').innerText = staff.branch;
+        hideLoading();
+        setupScannerListener();
+        resetIdleTimer();
     }
-    staff = { name: savedName, branch: savedBranch, role: savedRole };
-    document.getElementById('staff-name').innerText = staff.name;
-    document.getElementById('role-text').innerText = staff.role;
-    document.getElementById('shop-name').innerText = staff.branch;
-    hideLoading();
-    setupScannerListener();
-    resetIdleTimer();
 }
 
 function setupScannerListener() {
