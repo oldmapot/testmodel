@@ -311,6 +311,20 @@
         
         let currentStaff = null; // 儲存登入者資訊
         
+        // ✅ 產生設備唯一 ID（Device Token）
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('device_id');
+            if (!deviceId) {
+                // 使用多種資訊組合產生唯一 ID
+                const screenInfo = `${screen.width}x${screen.height}`;
+                const timeStamp = Date.now();
+                const randomStr = Math.random().toString(36).substring(2, 15);
+                deviceId = btoa(`${screenInfo}_${timeStamp}_${randomStr}`).substring(0, 32);
+                localStorage.setItem('device_id', deviceId);
+            }
+            return deviceId;
+        }
+        
         function togglePassword() {
             const passwordInput = document.getElementById('keyword');
             const type = passwordInput.type === 'password' ? 'text' : 'password';
@@ -344,7 +358,7 @@
             document.getElementById('branchModal').style.display = 'flex';
         }
 
-        // 確認分店
+        // ✅ 確認分店（帶入 loginId 和 deviceId）
         function confirmBranch() {
             const branch = document.getElementById('branchSelect').value;
             if (!branch) {
@@ -352,8 +366,8 @@
                 return;
             }
 
-            // 跳轉並傳遞 姓名 + 分店
-            const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}`;
+            // 跳轉並傳遞 姓名 + 分店 + loginId + deviceId
+            const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(currentStaff.loginId)}&role=${encodeURIComponent(currentStaff.role || '')}`;
             window.location.href = url;
         }
         
@@ -375,13 +389,22 @@
             errorMsgDiv.style.display = 'none';
             
             try {
-                const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}`;
+                // ✅ 加入 deviceId 參數
+                const deviceId = getDeviceId();
+                const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&deviceId=${encodeURIComponent(deviceId)}`;
                 const response = await fetch(verifyUrl);
                 const result = await response.json();
                 
                 if (result.success) {
+                    // 儲存完整的登入資訊（包含 loginId）
+                    currentStaff = {
+                        name: result.name,
+                        role: result.role || "夥伴",
+                        loginId: result.loginId || userId
+                    };
+                    
                     // 驗證通過 → 強制彈窗選擇分店
-                    await showBranchModal({ name: result.name });
+                    await showBranchModal(currentStaff);
                     
                     loginBtn.disabled = false;
                     loginBtn.innerHTML = '登入系統';
