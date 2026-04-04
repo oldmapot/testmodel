@@ -36,13 +36,16 @@
         .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 30%; border: 3px solid #00ff00; border-radius: 16px; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); pointer-events: none; }
         .scan-status-text { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; color: white; background: rgba(0,0,0,0.6); padding: 8px; font-size: 14px; }
         
+        /* 按鈕列：開啟相機 + 重新整理（重新整理佔約1/4） */
         .button-row { display: flex; gap: 12px; margin-bottom: 15px; }
         .btn-scan { flex: 3; margin-bottom: 0; }
         .btn-reset { flex: 1; background: #666; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        
         .header-top { display: flex; justify-content: flex-end; gap:6px; margin-bottom:5px; }
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
         .btn-logout { background:#ff4444; color:#fff; }
         
+        /* 登入彈窗 */
         .login-modal .modal-content { max-width: 380px; }
         .login-modal input, .login-modal select {
             width: 100%;
@@ -62,7 +65,7 @@
 
 <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-text" id="loadingText">老娘正在火速趕來...</div>
+    <div class="loading-text" id="loadingText">老娘正在翻帳本，幫你算驚喜...</div>
 </div>
 
 <div id="customModal">
@@ -95,6 +98,7 @@
 
     <input type="text" id="hiddenIdInput" placeholder="掃碼槍輸入區">
     
+    <!-- 按鈕列：開啟相機 + 重新整理 -->
     <div class="button-row">
         <button class="btn btn-scan" id="scanBtn" onclick="openCamera()">📷 開啟相機 / 準備掃碼槍</button>
         <button class="btn-reset" onclick="resetMember()">重新整理</button>
@@ -143,13 +147,13 @@
 <script>
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
-let staff = { name: "", branch: "", role: "使用者", account: "", password: "" };
+let staff = { name: "", branch: "", role: "夥伴", loginId: "" };
 let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, refRate: 0 };
 let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
 let isLoggedIn = false;
-let shopListCache = []; // 快取分店清單
+let shopListCache = [];
 
 // 5分鐘閒置登出
 let idleTimer;
@@ -177,6 +181,7 @@ function showToast(msg) {
 // 從 GAS 取得分店清單 (讀取「店面資訊」分頁的 B1, C1, D1...)
 async function fetchShopListFromGAS() {
     try {
+        // 透過新增的 getShopList API 讀取分店資料
         const response = await fetch(`${GAS_URL}?action=getShopList&t=${Date.now()}`);
         const data = await response.json();
         if (data.success && data.shops) {
@@ -190,14 +195,15 @@ async function fetchShopListFromGAS() {
     }
 }
 
-// 從 GAS 驗證店員登入 (讀取「店員管理」分頁的 A欄姓名, B欄帳號, C欄密碼)
-async function verifyStaffLoginFromGAS(account, password) {
+// 店員登入 API (使用現有的 staffLogin)
+async function staffLogin(account, password) {
     try {
-        const response = await fetch(`${GAS_URL}?action=verifyStaff&account=${encodeURIComponent(account)}&password=${encodeURIComponent(password)}&t=${Date.now()}`);
+        const url = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(account)}&keyword=${encodeURIComponent(password)}&t=${Date.now()}`;
+        const response = await fetch(url);
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error("驗證店員失敗:", error);
+        console.error("登入失敗:", error);
         return { success: false, message: "連線失敗" };
     }
 }
@@ -230,8 +236,8 @@ function showLoginModal() {
     modalOverlay.appendChild(modalCard);
     document.body.appendChild(modalOverlay);
     
-    let verifiedStaffName = null;
-    let step = 'login'; // login -> shopSelect
+    let verifiedStaffData = null;
+    let step = 'login';
     
     const accountInput = document.getElementById('loginAccount');
     const passwordInput = document.getElementById('loginPassword');
@@ -254,11 +260,17 @@ function showLoginModal() {
             errorDiv.style.display = 'none';
             showLoading("驗證帳號中...");
             
-            const result = await verifyStaffLoginFromGAS(account, password);
+            const result = await staffLogin(account, password);
             hideLoading();
             
             if (result.success) {
-                verifiedStaffName = result.name;
+                verifiedStaffData = {
+                    name: result.name,
+                    branch: result.branch,
+                    role: result.role || "夥伴",
+                    loginId: result.loginId
+                };
+                
                 // 帳號驗證成功，載入分店清單
                 showLoading("載入分店清單...");
                 const shops = await fetchShopListFromGAS();
@@ -299,14 +311,16 @@ function showLoginModal() {
             
             // 完成登入
             staff = {
-                name: verifiedStaffName,
+                name: verifiedStaffData.name,
                 branch: selectedShop,
-                role: "使用者"
+                role: verifiedStaffData.role,
+                loginId: verifiedStaffData.loginId
             };
             
             localStorage.setItem('staff_name', staff.name);
             localStorage.setItem('staff_branch', staff.branch);
             localStorage.setItem('staff_role', staff.role);
+            localStorage.setItem('staff_loginId', staff.loginId);
             
             document.getElementById('staff-name').innerText = staff.name;
             document.getElementById('role-text').innerText = staff.role;
@@ -325,7 +339,7 @@ function showLoginModal() {
 function logout() {
     isLoggedIn = false;
     localStorage.clear();
-    staff = { name: "", branch: "", role: "夥伴", account: "", password: "" };
+    staff = { name: "", branch: "", role: "夥伴", loginId: "" };
     document.getElementById('staff-name').innerText = "-";
     document.getElementById('shop-name').innerText = "請先登入";
     document.getElementById('member-ui').style.display = "none";
@@ -379,7 +393,7 @@ async function onScanSuccess(scannedText) {
     if (navigator.vibrate) navigator.vibrate(200);
     const parsed = parseScannedCode(scannedText);
     try {
-        showLoading("連線中...保持微笑");
+        showLoading("連線中...");
         const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
         const res = await fetch(finalUrl, { method: "GET", mode: "cors" });
         const data = await res.json();
@@ -451,11 +465,12 @@ function init() {
     let savedName = localStorage.getItem('staff_name');
     let savedBranch = localStorage.getItem('staff_branch');
     let savedRole = localStorage.getItem('staff_role') || "夥伴";
+    let savedLoginId = localStorage.getItem('staff_loginId');
     
     if (!savedName || !savedBranch) {
         showLoginModal();
     } else {
-        staff = { name: savedName, branch: savedBranch, role: savedRole };
+        staff = { name: savedName, branch: savedBranch, role: savedRole, loginId: savedLoginId };
         document.getElementById('staff-name').innerText = staff.name;
         document.getElementById('role-text').innerText = staff.role;
         document.getElementById('shop-name').innerText = staff.branch;
@@ -529,7 +544,7 @@ async function submitData() {
 
     await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
     hideLoading();
-    alert("✅ 集點作業完成");
+    alert("✅ 作業完成");
     resetMember();
     btn.disabled = false;
 }
