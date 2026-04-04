@@ -419,12 +419,11 @@ function updateCountdownDisplay() {
 // 產生 QR Code（使用動態金鑰）
 function generateMemberCode() {
     if (!userId || !userData?.shopKey) return;
-    const shopCode = userData.shopCode;   // "omp" 或 "swo"
-    const randomKey = userData.shopKey;   // 後端給的隨機金鑰
+    const shopCode = userData.shopCode;
+    const randomKey = userData.shopKey;
     const qrData = `${shopCode}_${randomKey}_${userId}`;
     const qrImg = document.getElementById('qrcode');
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
-    // 重置倒數計時（60秒）
     startCountdown(60);
 }
 
@@ -436,40 +435,45 @@ function generateRegCode() {
     q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
 }
 
-// 統一重新整理函數（同時更新 QR Code 和點數）
+// 🚀 快速重新整理（使用輕量 API）
 async function refreshAll() {
     if (!userId) return;
+    const refreshBtn = document.querySelector('.asset-card button');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '🔄 更新中...';
+    refreshBtn.disabled = true;
+    
     try {
-        // 顯示載中（可選）
-        const refreshBtn = document.querySelector('.asset-card button');
-        if (refreshBtn) refreshBtn.disabled = true;
+        const url = `${GAS_URL}?action=quickRefresh&userId=${encodeURIComponent(userId)}&from=${currentFrom}&t=${Date.now()}`;
+        const res = await fetch(url);
+        const data = await res.json();
         
-        // 重新獲取會員資料
-        const url = `${GAS_URL}?action=checkID&userId=${userId}&from=${currentFrom}&referrerId=${encodeURIComponent(referrerParam)}&t=${Date.now()}`;
-        let res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        let responseText = await res.text();
-        let newUserData;
-        try { newUserData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
-        
-        if (newUserData && newUserData.isMember === true) {
+        if (data.success) {
             // 更新點數顯示
-            const displayPoints = newUserData.points !== undefined ? newUserData.points : (newUserData.profile?.points || 0);
-            document.getElementById('pointsDisplay').innerText = displayPoints;
-            // 更新 userData
-            userData = newUserData;
+            document.getElementById('pointsDisplay').innerText = data.points;
+            // 更新 userData 中的點數和金鑰
+            if (userData) {
+                userData.points = data.points;
+                userData.shopKey = data.shopKey;
+                userData.shopCode = data.shopCode;
+            }
             // 重新產生 QR Code
-            generateMemberCode();
+            if (userData) {
+                const qrData = `${data.shopCode}_${data.shopKey}_${userId}`;
+                const qrImg = document.getElementById('qrcode');
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
+                startCountdown(60);
+            }
             showToast('✅ 資料已更新');
         } else {
-            showToast('資料更新失敗，請稍後再試');
+            showToast('更新失敗，請稍後再試');
         }
     } catch(e) {
         console.error("Refresh Error:", e);
-        showToast('重新整理失敗，請稍後再試');
+        showToast('網路錯誤，請稍後再試');
     } finally {
-        const refreshBtn = document.querySelector('.asset-card button');
-        if (refreshBtn) refreshBtn.disabled = false;
+        refreshBtn.innerHTML = originalText;
+        refreshBtn.disabled = false;
     }
 }
 
