@@ -304,6 +304,11 @@ async function onScanSuccess(scannedText) {
     
     // ✅ 呼叫後端 verifyScan
     const staffInfo = JSON.parse(localStorage.getItem("staffLogin") || "{}");
+   console.log("=== 掃描時讀取的 staffInfo ===");
+console.log("staffInfo 完整內容:", staffInfo);
+console.log("staffInfo.name:", staffInfo.name);
+console.log("staffInfo.name 型態:", typeof staffInfo.name);
+console.log("==============================");        
     const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=${encodeURIComponent(staffInfo.userId || "")}&staffName=${encodeURIComponent(staffInfo.name || "")}&staffBranch=${encodeURIComponent(staffInfo.branch || "")}`;
     
     try {
