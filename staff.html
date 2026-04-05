@@ -44,7 +44,6 @@
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
         .btn-logout { background:#ff4444; color:#fff; }
 
-        /* 低消提示樣式 */
         .redeem-tip {
             margin-top:8px;
             padding:8px 12px;
@@ -122,7 +121,6 @@
             <div class="input-group">
                 <label>3. 折抵點數 (上限：<span id="max-hint" style="color:blue;">0</span> 點)</label>
                 <input type="number" id="redeemAmount" oninput="doCalc()" placeholder="欲折抵點數">
-                <!-- 低消提示 -->
                 <div id="redeemTip" class="redeem-tip tip-normal"></div>
             </div>
         </div>
@@ -145,7 +143,7 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
 let staff = { name: "", branch: "", role: "夥伴" };
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, shopCode: "" };
+let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, shopCode: "", eventMultiplier: 1 };
 let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
@@ -221,6 +219,7 @@ function resetMember() {
     document.getElementById("max-hint").innerText="0";
     document.getElementById("redeemTip").innerText = "";
     document.getElementById("ticketMode").checked=false;
+    config.eventMultiplier = 1;
     toggleMode();
     showToast("✅ 已清除會員資料");
 }
@@ -303,6 +302,7 @@ async function onScanSuccess(scannedText) {
                 levelRate = data.member.levelRate || 1;
                 config.levelRate = levelRate;
                 config.shopCode = parsed.shopCode || "omp";
+                config.eventMultiplier = data.config.eventMultiplier || 1;
 
                 document.getElementById('member-ui').style.display = 'block';
                 document.getElementById('form-ui').classList.remove('locked');
@@ -367,7 +367,7 @@ function setupScannerListener() {
     let buffer = "";
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') { onScanSuccess(buffer); buffer = ""; }
-        else { buffer += e.key; setTimeout(() => { buffer = ""; }, 15); }
+        else { buffer += e.key; setTimeout(() => { buffer = ""; }, 150); }
     });
 }
 
@@ -378,9 +378,7 @@ function toggleMode() {
     doCalc();
 }
 
-// ==============================================
-// 🔥 核心：低消 + 折抵計算（完全對應你的參數）
-// ==============================================
+// 🔥 絕對正確的doCalc()（含活動倍率、低消、折抵）
 function doCalc() {
     if (!config.earnRate) return;
     
@@ -388,10 +386,11 @@ function doCalc() {
     const isTicket = document.getElementById('ticketMode').checked;
     let newPts = 0, redeem = 0, maxRedeem = 0;
     const currentLevelRate = config.levelRate || 1;
+    const eventMultiplier = config.eventMultiplier || 1;
 
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
-        newPts = Math.floor(buy * config.ticketRate * currentLevelRate);
+        newPts = Math.floor(buy * config.earnRate * currentLevelRate * eventMultiplier);
         tipEl.innerText = "餐券模式：無法折抵點數";
         tipEl.className = "redeem-tip tip-normal";
     } else {
@@ -424,7 +423,9 @@ function doCalc() {
         redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, maxRedeem);
         document.getElementById('redeemAmount').value = redeem;
         document.getElementById('max-hint').innerText = maxRedeem;
-        newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate);
+
+        // 🔥 正確集點公式：(消費-餐券-折抵) × 基礎3% × 會員倍率 × 活動倍率 → 無條件捨去
+        newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate * eventMultiplier);
     }
 
     document.getElementById('new-pts').innerText = newPts;
@@ -446,7 +447,8 @@ async function submitData() {
         ticketSpend: Number(document.getElementById('ticketSpend').value) || 0,
         redeemAmount: Number(document.getElementById('redeemAmount').value) || 0,
         buyTicket: Number(document.getElementById('buyTicket').value) || 0,
-        earnRate: config.earnRate, ticketRate: config.ticketRate, levelRate: levelRate
+        earnRate: config.earnRate, ticketRate: config.ticketRate, levelRate: levelRate,
+        eventMultiplier: config.eventMultiplier
     };
 
     await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
