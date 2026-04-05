@@ -430,11 +430,32 @@ function generateMemberCode() {
 }
 
 function generateRegCode() {
-    if (!referrerParam || referrerParam === 'undefined' || referrerParam === '') return;
-    let q = document.getElementById('regGiftQR');
-    const shopCode = (currentFrom === 'so') ? 'swo' : 'omp';
-    const codeData = `INV_${shopCode}_${referrerParam}`;
-    q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
+    // 1. 取得原始的推薦參數 (格式為 UserID|Timestamp)
+    let rawRef = referrerParam; 
+    if (!rawRef || rawRef === 'undefined') return;
+
+    // 2. 【核心修改】：拆解字串，只取左邊的 UserID
+    // 如果字串裡有 '|'，就切開拿第 0 個；如果沒有，就用原本的
+    let cleanRefId = rawRef.indexOf('|') > -1 ? rawRef.split('|')[0] : rawRef;
+
+    // 3. 組合 QR Code 內容 (格式維持店面要求的：分店_金鑰_推薦人ID)
+    // 這裡的 userData.shopKey 是由 checkMember 回傳的隨機金鑰
+    const codeData = `${userData.shopCode}_${userData.shopKey}_${cleanRefId}`;
+    
+    // 4. 產出 QR Code (假設你使用的是 QRCode.js 或類似套件)
+    const qrContainer = document.getElementById('regQRCode');
+    qrContainer.innerHTML = ""; // 先清空舊的
+    
+    new QRCode(qrContainer, {
+        text: codeData,
+        width: 200,
+        height: 200,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+
+    console.log("招待碼已產生：", codeData);
 }
 
 // 統一重新整理函數（同時更新 QR Code 和點數）
