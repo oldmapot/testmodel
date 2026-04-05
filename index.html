@@ -430,32 +430,30 @@ function generateMemberCode() {
 }
 
 function generateRegCode() {
-    // 1. 取得原始的推薦參數 (格式為 UserID|Timestamp)
+    // 防止 userData 還沒載入就執行
+    if (!userData || !userData.shopCode) {
+        console.error("尚未取得店面金鑰資料");
+        return;
+    }
+
     let rawRef = referrerParam; 
     if (!rawRef || rawRef === 'undefined') return;
 
-    // 2. 【核心修改】：拆解字串，只取左邊的 UserID
-    // 如果字串裡有 '|'，就切開拿第 0 個；如果沒有，就用原本的
-    let cleanRefId = rawRef.indexOf('|') > -1 ? rawRef.split('|')[0] : rawRef;
+    // 拆解 ID，只拿左邊
+    let cleanRefId = rawRef.split('|')[0]; 
 
-    // 3. 組合 QR Code 內容 (格式維持店面要求的：分店_金鑰_推薦人ID)
-    // 這裡的 userData.shopKey 是由 checkMember 回傳的隨機金鑰
+    // 組合碼：分店_金鑰_推薦人ID
     const codeData = `${userData.shopCode}_${userData.shopKey}_${cleanRefId}`;
     
-    // 4. 產出 QR Code (假設你使用的是 QRCode.js 或類似套件)
     const qrContainer = document.getElementById('regQRCode');
-    qrContainer.innerHTML = ""; // 先清空舊的
+    if (!qrContainer) return; // 防止找不到 HTML 元素
     
+    qrContainer.innerHTML = ""; 
     new QRCode(qrContainer, {
         text: codeData,
-        width: 200,
-        height: 200,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
+        width: 180,
+        height: 180
     });
-
-    console.log("招待碼已產生：", codeData);
 }
 
 // 統一重新整理函數（同時更新 QR Code 和點數）
@@ -552,38 +550,42 @@ async function fetchData(isReload = false) {
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
 
-        // --- 2. 非會員（準備註冊）的情況 ---
+       // --- 2. 非會員（準備註冊）的情況 ---
         } else {
             document.getElementById('memberUI').style.display = 'none';
             document.getElementById('regUI').style.display = 'block';
             
-            // 判定是否有推薦人參數
+            // 檢查有無推薦人參數
             if (referrerParam && referrerParam !== 'undefined' && referrerParam !== '') {
                 
-                // 【新增判定】：檢查連結是否過期 (由 GAS 回傳的 expiredLink 旗標)
+                // 如果連結已過期 (GAS 回傳 expiredLink: true)
                 if (userData && userData.expiredLink === true) {
-                    document.getElementById('regGiftArea').style.display = 'none'; // 隱藏招待區域
+                    document.getElementById('regGiftArea').style.display = 'none';
                     showToast('⚠️ 此推薦連結已超過 14 天效期');
-                    
-                    // 可選：在介面上顯示提示文字
-                    console.log("連結已失效，本次註冊將不會綁定推薦人");
                 } else {
-                    // 連結有效：顯示好友招待禮
+                    // 連結有效，顯示招待區
                     document.getElementById('regGiftArea').style.display = 'block';
+                    
+                    // 取得推薦人姓名
                     let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
+                    
                     document.getElementById('giftTitle').innerText = `🎁 你的好友 ${referrerName} 送你的專屬好禮`;
                     document.getElementById('giftTitle').style.textAlign = "center";
                     document.getElementById('giftTip').style.textAlign = "center";
-                    generateRegCode();
+                    
+                    // 產生 QR Code (請確保 generateRegCode 裡面也有處理 split('|'))
+                    generateRegCode(); 
                 }
             } else {
-                // 無推薦人，正常顯示註冊頁面，隱藏招待區
+                // 完全沒有推薦人參數的情況
                 document.getElementById('regGiftArea').style.display = 'none';
             }
         }
     } catch(e) { 
         console.error("Fetch Error:", e);
         showToast('資料載入失敗，請稍後再試');
+    } finally {
+        // 無論成功失敗都關閉載入中動畫
         document.getElementById('loading').style.display = 'none';
     }
 }
