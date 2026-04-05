@@ -429,10 +429,15 @@ function generateMemberCode() {
 
 function generateRegCode() {
     if (!referrerParam || referrerParam === 'undefined' || referrerParam === '') return;
-    let q = document.getElementById('regGiftQR');
+    
+    // ⭐ 關鍵：QR Code 內容必須包含 3 段：品牌代號 + 推薦人ID + 新客UserID
     const shopCode = (currentFrom === 'so') ? 'swo' : 'omp';
-    const codeData = `INV_${shopCode}_${referrerParam}`;
-    q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
+    const codeData = `INV_${shopCode}_${referrerParam}_${userId}`;
+    
+    const qrImg = document.getElementById('regGiftQR');
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
+    
+    console.log("✅ 招待碼已產生:", codeData);  // 加入這行確認格式
 }
 
 // 🚀 快速重新整理（使用輕量 API）
