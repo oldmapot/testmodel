@@ -430,32 +430,24 @@ function generateMemberCode() {
 }
 
 function generateRegCode() {
-    // 防止 userData 還沒載入就執行
     if (!userData || !userData.shopCode) {
         console.error("尚未取得店面金鑰資料");
         return;
     }
 
     let rawRef = referrerParam; 
-    if (!rawRef || rawRef === 'undefined') {
-        console.error("沒有推薦人參數");
-        return;
-    }
+    if (!rawRef || rawRef === 'undefined') return;
 
-    // 拆解 ID，只拿左邊（去掉時間戳記）
-    let cleanRefId = rawRef.split('|')[0]; 
-
-    // 組合碼：分店_金鑰_推薦人ID
-    const codeData = `${userData.shopCode}_${userData.shopKey}_${cleanRefId}`;
+    let cleanRefId = rawRef.split('|')[0];
     
-    // ✅ 使用原本的 img 元素 + QR Server API
+    // ✅ QR 內容：分店_金鑰_新客ID_推薦人ID
+    const codeData = `${userData.shopCode}_${userData.shopKey}_${userId}_${cleanRefId}`;
+    
     const qrImg = document.getElementById('regGiftQR');
     if (qrImg) {
         qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(codeData)}`;
         qrImg.style.display = "block";
-        console.log("✅ QR Code 已產生:", codeData);
-    } else {
-        console.error("❌ 找不到 regGiftQR 元素");
+        console.log("QR 已產生，新客:", userId, "推薦人:", cleanRefId);
     }
 }
 
