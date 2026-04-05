@@ -516,8 +516,12 @@ async function fetchData(isReload = false) {
         let res = await fetch(url);
         if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
         let responseText = await res.text();
+        
         try { userData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
+        
         document.getElementById('loading').style.display = 'none';
+
+        // --- 1. 已是會員的情況 ---
         if (userData && userData.isMember === true) {
             document.getElementById('memberUI').style.display = 'block';
             document.getElementById('regUI').style.display = 'none';
@@ -526,16 +530,34 @@ async function fetchData(isReload = false) {
             document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
+
+        // --- 2. 非會員（準備註冊）的情況 ---
         } else {
             document.getElementById('memberUI').style.display = 'none';
             document.getElementById('regUI').style.display = 'block';
+            
+            // 判定是否有推薦人參數
             if (referrerParam && referrerParam !== 'undefined' && referrerParam !== '') {
-                document.getElementById('regGiftArea').style.display = 'block';
-                let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
-                document.getElementById('giftTitle').innerText = `🎁 你的好友 ${referrerName} 送你的專屬好禮`;
-                document.getElementById('giftTitle').style.textAlign = "center";
-                document.getElementById('giftTip').style.textAlign = "center";
-                generateRegCode();
+                
+                // 【新增判定】：檢查連結是否過期 (由 GAS 回傳的 expiredLink 旗標)
+                if (userData && userData.expiredLink === true) {
+                    document.getElementById('regGiftArea').style.display = 'none'; // 隱藏招待區域
+                    showToast('⚠️ 此推薦連結已超過 14 天效期');
+                    
+                    // 可選：在介面上顯示提示文字
+                    console.log("連結已失效，本次註冊將不會綁定推薦人");
+                } else {
+                    // 連結有效：顯示好友招待禮
+                    document.getElementById('regGiftArea').style.display = 'block';
+                    let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
+                    document.getElementById('giftTitle').innerText = `🎁 你的好友 ${referrerName} 送你的專屬好禮`;
+                    document.getElementById('giftTitle').style.textAlign = "center";
+                    document.getElementById('giftTip').style.textAlign = "center";
+                    generateRegCode();
+                }
+            } else {
+                // 無推薦人，正常顯示註冊頁面，隱藏招待區
+                document.getElementById('regGiftArea').style.display = 'none';
             }
         }
     } catch(e) { 
@@ -649,13 +671,46 @@ function openPointHistory() {
 function openProfile() { let p = userData?.profile; if(!p) return; openModal(`<h3 style="color:var(--primary); text-align:center;">👤 個人資料</h3><p>姓名：${p.name}</p><p>電話：${p.phone}</p><p>生日：${p.birthday}</p>`); }
 
 function autoCopyShare() { 
-    const encodedReferrer = encodeURIComponent(userId);
+    // 1. 取得當前時間戳記 (例如: 1711939200000)
+    const now = Date.now();
+    
+    // 2. 組合推薦資訊：UserID + 直槓 + 時間戳記
+    // 格式會變成：U123456...|1711939200000
+    const rawReferrer = `${userId}|${now}`;
+    
+    // 3. 進行編碼，確保 | 符號在網址傳遞時不會出錯
+    const encodedReferrer = encodeURIComponent(rawReferrer);
+    
     const shareUrl = `https://liff.line.me/${LIFF_ID}?from=${currentFrom}&referrer=${encodedReferrer}`;
     const shareText = `✨ 發現高雄隱藏版美味 ✨\n立即加入領取新客禮：\n${shareUrl}`;
     
+    // 複製到剪貼簿
     navigator.clipboard.writeText(shareText)
-        .then(() => openModal(`<div class="share-modal-content"><div class="share-title">✅ 推薦碼已複製！</div><div class="share-body">趕快請好友領取新客招待禮<br>他消費，你領回饋 💕</div></div>`))
-        .catch(() => showToast('複製失敗，請手動複製')); 
+        .then(() => {
+            openModal(`
+                <div class="share-modal-content">
+                    <div class="share-title">✅ 推薦連結已複製！</div>
+                    <div class="share-body">
+                        連結有效期為 14 天<br>
+                        趕快發給好友領取新客招待禮吧 💕
+                    </div>
+                </div>
+            `);
+        })
+        .catch(() => {
+            // 如果瀏覽器不支援 clipboard API 的備案
+            const textArea = document.createElement("textarea");
+            textArea.value = shareText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('✅ 推薦碼已複製');
+            } catch (err) {
+                showToast('複製失敗，請手動截圖分享');
+            }
+            document.body.removeChild(textArea);
+        }); 
 }
 
 function openModal(html) { document.getElementById('modalBody').innerHTML = html; document.getElementById('modal').style.display = 'flex'; }
