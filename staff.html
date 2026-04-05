@@ -43,6 +43,17 @@
         .header-top { display: flex; justify-content: flex-end; gap:6px; margin-bottom:5px; }
         .header-btn { font-size:12px; padding:3px 6px; border:none; border-radius:4px; cursor:pointer; }
         .btn-logout { background:#ff4444; color:#fff; }
+
+        /* 低消提示樣式 */
+        .redeem-tip {
+            margin-top:8px;
+            padding:8px 12px;
+            border-radius:8px;
+            font-size:13px;
+            font-weight:bold;
+        }
+        .tip-normal { background:#e8f5e9; color:#2e7d32; }
+        .tip-no-redeem { background:#ffebee; color:#c62828; }
     </style>
     <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
@@ -70,7 +81,6 @@
     </div>
 </div>
 
-<!-- 主畫面 -->
 <div id="mainUI" class="card">
     <div class="header">
         <div class="header-top">
@@ -112,6 +122,8 @@
             <div class="input-group">
                 <label>3. 折抵點數 (上限：<span id="max-hint" style="color:blue;">0</span> 點)</label>
                 <input type="number" id="redeemAmount" oninput="doCalc()" placeholder="欲折抵點數">
+                <!-- 低消提示 -->
+                <div id="redeemTip" class="redeem-tip tip-normal"></div>
             </div>
         </div>
 
@@ -133,19 +145,17 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzWv_dbuGFEEYaA1kfmh3yT8NG21XwmDIJEe6K4JU4z-ilzjsEcudMcxlfaRIDT40GrSA/exec";
 
 let staff = { name: "", branch: "", role: "夥伴" };
-let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0 };
+let config = { minSpend: 0, maxRate: 0, earnRate: 0, ticketRate: 0, shopCode: "" };
 let customerId = "", currentPoints = 0, memberLevel = "", levelRate = 1;
 let cameraStream = null;
 let scanInterval = null;
 let isLoggedIn = true;
 
-// 取得網址參數
 function getUrlParam(name) {
     const url = new URLSearchParams(window.location.search);
     return url.get(name);
 }
 
-// 初始化：自動帶入 姓名 & 分店
 function init() {
     const staffName = getUrlParam('name') || '未登入';
     const branchName = getUrlParam('branch') || '請選擇分店';
@@ -153,7 +163,6 @@ function init() {
     staff.name = staffName;
     staff.branch = branchName;
     
-    // 自動顯示在頁面
     document.getElementById('staff-name').innerText = staff.name;
     document.getElementById('shop-name').innerText = staff.branch;
     
@@ -161,7 +170,6 @@ function init() {
     setupScannerListener();
 }
 
-// 5分鐘閒置登出
 let idleTimer;
 function resetIdleTimer() {
     if (!isLoggedIn) return;
@@ -171,49 +179,20 @@ function resetIdleTimer() {
 document.addEventListener("mousemove", resetIdleTimer);
 document.addEventListener("keydown", resetIdleTimer);
 document.addEventListener("click", resetIdleTimer);
-// 1. 修正後的登入函數 (放在 staff_login.html 的腳本中)
-function performLogin() {
-    let userId = document.getElementById('userId').value;
-    let password = document.getElementById('password').value;
-    let branch = document.getElementById('branchSelect').value; 
 
-    // 這裡的 API_URL 請確保已經定義，或直接填入你的 GAS 網址
-    let url = `${API_URL}?action=staffLogin&userId=${userId}&keyword=${password}&branch=${encodeURIComponent(branch)}`;
-    
-    showLoading("登入中...");
-    fetch(url).then(res => res.json()).then(data => {
-        hideLoading();
-        if(data.success) {
-            // 重點：跳轉時一定要帶上 loginId，後面的 logout 才抓得到是誰要登出
-            window.location.href = `index.html?name=${encodeURIComponent(data.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(userId)}`;
-        } else {
-            alert(data.message);
-        }
-    }).catch(e => alert("登入連線失敗"));
-}
-
-// 2. 修正後的登出函數 (放在 index.html 的腳本中)
-// 注意：請確保這個檔案裡只有一個 logout 函數
 async function logout() {
     const loginId = getUrlParam('loginId'); 
-    
     if (loginId) {
         showLoading("正在紀錄登出時間...");
         try {
-            // 這裡的網址請替換成你實際的 GAS Web App 網址
-            const url = `${API_URL}?action=staffLogout&loginId=${encodeURIComponent(loginId)}`;
-            
-            // 使用 await 確保發送成功後才跳轉頁面
+            const url = `${GAS_URL}?action=staffLogout&loginId=${encodeURIComponent(loginId)}`;
             await fetch(url, { mode: 'no-cors' }); 
-        } catch (e) {
-            console.error("登出紀錄回傳失敗", e);
-        }
+        } catch (e) { console.error("登出紀錄回傳失敗", e); }
     }
-    
-    // 執行跳轉
     isLoggedIn = false;
     window.location.href = 'staff_login.html';
 }
+
 function showLoading(text) { const el = document.getElementById('loadingText'); if (text) el.innerText = text; document.getElementById('loadingOverlay').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 function showModal(html) { document.getElementById('modalText').innerHTML = html; document.getElementById('customModal').style.display = 'flex'; }
@@ -225,7 +204,7 @@ function showToast(msg) {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
 }
-// 重新整理 → 只清除會員
+
 function resetMember() {
     customerId = ""; currentPoints=0; memberLevel=""; levelRate=1;
     document.getElementById("member-ui").style.display = "none";
@@ -240,6 +219,7 @@ function resetMember() {
     document.getElementById("new-pts").innerText="0";
     document.getElementById("after-pts").innerText="0";
     document.getElementById("max-hint").innerText="0";
+    document.getElementById("redeemTip").innerText = "";
     document.getElementById("ticketMode").checked=false;
     toggleMode();
     showToast("✅ 已清除會員資料");
@@ -250,31 +230,18 @@ function parseScannedCode(scannedText) {
     if (clean.indexOf("##") === 0) clean = clean.substring(2);
     if (clean.toUpperCase().indexOf("GIFT_BY_") !== -1) return { type: "gift" };
     
-    // 招待碼解析：INV_omp_USER123_NEWUSER456
     if (clean.toUpperCase().indexOf("INV_") === 0) {
-        const inviteParts = clean.substring(4).split("_");  // 移除 INV_
-        
+        const inviteParts = clean.substring(4).split("_");
         if (inviteParts.length === 3) {
-            return { 
-                type: "invite", 
-                shopCode: inviteParts[0],      // omp / swo
-                referrerId: inviteParts[1],    // 推薦人 ID
-                newUserId: inviteParts[2]      // 新客自己的 UserID
-            };
+            return { type: "invite", shopCode: inviteParts[0], referrerId: inviteParts[1], newUserId: inviteParts[2] };
         } else {
-            // 相容舊格式（只有2段）
-            return { 
-                type: "invite", 
-                shopCode: inviteParts[0],
-                referrerId: inviteParts[1],
-                newUserId: ""  // 舊格式沒有新客 UserID
-            };
+            return { type: "invite", shopCode: inviteParts[0], referrerId: inviteParts[1], newUserId: "" };
         }
     }
     
     const parts = clean.split("_");
     if (parts.length === 3 && (parts[0] === "omp" || parts[0] === "swo")) {
-        return { type: "member", userId: parts[2] };
+        return { type: "member", userId: parts[2], shopCode: parts[0] };
     }
     return { type: "member", userId: clean };
 }
@@ -285,15 +252,12 @@ async function onScanSuccess(scannedText) {
     await closeCamera();
     if (navigator.vibrate) navigator.vibrate(200);
     
-    // ========== 解析掃描內容 ==========
     const parsed = parseScannedCode(scannedText);
     
     try {
         showLoading("連線中...");
         
-        // ========== 招待碼流程（type === "invite"） ==========
         if (parsed.type === "invite") {
-            // ⭐ 直接從解析結果取得新客 UserID，不再讀 localStorage！
             const newUserId = parsed.newUserId;
             const shopCode = parsed.shopCode;
             const referrerId = parsed.referrerId;
@@ -313,17 +277,12 @@ async function onScanSuccess(scannedText) {
             
             if (result.success && result.isGift) {
                 showToast(`✅ 招待成功！歡迎新朋友`);
-                document.getElementById('reader').style.display = "none";
-                setTimeout(() => {
-                    if (typeof closeModal === 'function') closeModal();
-                }, 2000);
             } else {
                 showModal(`⚠️ 招待失敗：${result.error || "未知錯誤"}`);
             }
             return;
         }
         
-        // ========== 一般會員碼流程（type === "member"） ==========
         if (parsed.type === "member") {
             if (!parsed.userId) {
                 hideLoading();
@@ -343,6 +302,7 @@ async function onScanSuccess(scannedText) {
                 memberLevel = data.member.level || "一般會員";
                 levelRate = data.member.levelRate || 1;
                 config.levelRate = levelRate;
+                config.shopCode = parsed.shopCode || "omp";
 
                 document.getElementById('member-ui').style.display = 'block';
                 document.getElementById('form-ui').classList.remove('locked');
@@ -358,7 +318,6 @@ async function onScanSuccess(scannedText) {
             return;
         }
         
-        // ========== 其他類型（gift 或其他） ==========
         hideLoading();
         showModal("⚠️ 無法識別的 QR Code 類型");
         
@@ -367,6 +326,7 @@ async function onScanSuccess(scannedText) {
         showModal("系統連線失敗：" + err.message);
     }
 }
+
 async function openCamera() {
     if (!isLoggedIn) { showToast("請先登入"); return; }
     try {
@@ -407,7 +367,7 @@ function setupScannerListener() {
     let buffer = "";
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') { onScanSuccess(buffer); buffer = ""; }
-        else { buffer += e.key; setTimeout(() => { buffer = ""; }, 150); }
+        else { buffer += e.key; setTimeout(() => { buffer = ""; }, 15); }
     });
 }
 
@@ -418,23 +378,52 @@ function toggleMode() {
     doCalc();
 }
 
+// ==============================================
+// 🔥 核心：低消 + 折抵計算（完全對應你的參數）
+// ==============================================
 function doCalc() {
     if (!config.earnRate) return;
+    
+    const tipEl = document.getElementById('redeemTip');
     const isTicket = document.getElementById('ticketMode').checked;
-    let newPts = 0, redeem = 0;
+    let newPts = 0, redeem = 0, maxRedeem = 0;
     const currentLevelRate = config.levelRate || 1;
 
     if (isTicket) {
         const buy = Number(document.getElementById('buyTicket').value) || 0;
         newPts = Math.floor(buy * config.ticketRate * currentLevelRate);
+        tipEl.innerText = "餐券模式：無法折抵點數";
+        tipEl.className = "redeem-tip tip-normal";
     } else {
         const total = Number(document.getElementById('totalSpend').value) || 0;
         const ticket = Number(document.getElementById('ticketSpend').value) || 0;
         const base = total - ticket;
-        const max = base >= config.minSpend ? Math.min(currentPoints, Math.floor(base * config.maxRate)) : 0;
-        document.getElementById('max-hint').innerText = max;
-        redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, max);
+
+        // 1. 自動抓品牌低消
+        let minSpend = config.shopCode === "swo" ? 500 : 1500;
+        
+        // 2. 禁止折抵判斷 (maxRate=0)
+        if (config.maxRate <= 0) {
+            maxRedeem = 0;
+            tipEl.innerText = "🚫 今日活動暫停折抵";
+            tipEl.className = "redeem-tip tip-no-redeem";
+        }
+        // 3. 未達低消
+        else if (base < minSpend) {
+            maxRedeem = 0;
+            tipEl.innerText = `⚠️ 未達低消門檻 ${minSpend} 元，無法折抵`;
+            tipEl.className = "redeem-tip tip-no-redeem";
+        }
+        // 4. 正常可折抵
+        else {
+            maxRedeem = Math.min(currentPoints, Math.floor(base * config.maxRate));
+            tipEl.innerText = `✅ 已達低消 ${minSpend} 元，可正常折抵`;
+            tipEl.className = "redeem-tip tip-normal";
+        }
+
+        redeem = Math.min(Number(document.getElementById('redeemAmount').value) || 0, maxRedeem);
         document.getElementById('redeemAmount').value = redeem;
+        document.getElementById('max-hint').innerText = maxRedeem;
         newPts = Math.floor((base - redeem) * config.earnRate * currentLevelRate);
     }
 
