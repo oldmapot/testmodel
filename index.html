@@ -589,6 +589,14 @@ async function fetchData(isReload = false) {
         document.getElementById('loading').style.display = 'none';
     }
 }
+    } catch(e) { 
+        console.error("Fetch Error:", e);
+        showToast('資料載入失敗，請稍後再試');
+    } finally {
+        // 無論成功失敗都關閉載入中動畫
+        document.getElementById('loading').style.display = 'none';
+    }
+}
 
 async function doRegister() {
     let name = document.getElementById('regName').value.trim();
