@@ -437,23 +437,26 @@ function generateRegCode() {
     }
 
     let rawRef = referrerParam; 
-    if (!rawRef || rawRef === 'undefined') return;
+    if (!rawRef || rawRef === 'undefined') {
+        console.error("沒有推薦人參數");
+        return;
+    }
 
-    // 拆解 ID，只拿左邊
+    // 拆解 ID，只拿左邊（去掉時間戳記）
     let cleanRefId = rawRef.split('|')[0]; 
 
     // 組合碼：分店_金鑰_推薦人ID
     const codeData = `${userData.shopCode}_${userData.shopKey}_${cleanRefId}`;
     
-    const qrContainer = document.getElementById('regQRCode');
-    if (!qrContainer) return; // 防止找不到 HTML 元素
-    
-    qrContainer.innerHTML = ""; 
-    new QRCode(qrContainer, {
-        text: codeData,
-        width: 180,
-        height: 180
-    });
+    // ✅ 使用原本的 img 元素 + QR Server API
+    const qrImg = document.getElementById('regGiftQR');
+    if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(codeData)}`;
+        qrImg.style.display = "block";
+        console.log("✅ QR Code 已產生:", codeData);
+    } else {
+        console.error("❌ 找不到 regGiftQR 元素");
+    }
 }
 
 // 統一重新整理函數（同時更新 QR Code 和點數）
