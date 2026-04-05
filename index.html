@@ -31,12 +31,15 @@
         .side-menu-item { display: block; width: 100%; padding: 18px 24px; background: none; border: none; text-align: left; font-size: 18px; color: var(--text); cursor: pointer; border-bottom: 1px solid #f0f0f0; font-weight: bold; }
         .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; }
         .side-menu-overlay.show { display: block; }
+/* 讓側欄用flex布局，只改法務按鈕 */
 .side-menu-items {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 120px);
-  padding-bottom: 20px;
+  height: calc(100vh - 120px); /* 減去header高度，避免超出 */
+  padding-bottom: 20px; /* 底部留間距，不貼邊 */
 }
+
+/* 只針對法務免責（最後一個按鈕） */
 .side-menu-item:last-child {
   margin-top: auto !important;
   text-align: center !important;
@@ -196,11 +199,7 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbw9CjVEzarKVTQmVQvGKGQC
 const LIFF_ID = "2009629897-4eV8mdFu";
 let userId = '', userData = null, currentFrom = 'omp', referrerParam = '', userToken = '', pendingCheckboxId = null;
 
-// 🔥 從 GAS 取回的折抵設定
-let memberPoints = 0;
-let minSpend = 0;
-let maxRedeemRate = 0;
-
+// QR Code 倒數計時相關變數
 let countdownInterval = null;
 let currentCountdown = 60;
 
@@ -286,7 +285,7 @@ function openLegalModal(e) {
     <style>
       .legal-container { font-size: 14px; line-height: 1.6; color: #333; }
       .legal-row { display: flex; margin-bottom: 12px; align-items: flex-start; }
-      .legal-title { font-weight: bold; flex-shrink: 0; min-width: 105px; color: #d9534f; }
+      .legal-title { font-weight: bold; flex-shrink: 0; min-width: 105px; color: #d9534f; } /* 法務類用紅色調提醒 */
       .legal-body { flex-grow: 1; }
     </style>
 
@@ -321,8 +320,8 @@ function openLegalModal(e) {
       </div>
 
       <div class="legal-row">
-        <div class="rule-title">◆ 未盡事宜</div>
-        <div class="rule-body">依店內或系統最新公告為主。</div>
+        <div class="legal-title">◆ 最終解釋權</div>
+        <div class="legal-body">本公司保有對所有活動規則與點數機制之最終解釋權。</div>
       </div>
     </div>
   `); 
@@ -385,6 +384,7 @@ function openShopInfo() {
     openModal(html);
 }
 
+// 停止倒數計時
 function stopCountdown() {
     if (countdownInterval) {
         clearInterval(countdownInterval);
@@ -392,6 +392,7 @@ function stopCountdown() {
     }
 }
 
+// 開始倒數計時
 function startCountdown(seconds) {
     stopCountdown();
     currentCountdown = seconds;
@@ -401,11 +402,13 @@ function startCountdown(seconds) {
         updateCountdownDisplay();
         if (currentCountdown <= 0) {
             stopCountdown();
+            // 倒數歸零，自動刷新
             refreshAll();
         }
     }, 1000);
 }
 
+// 更新倒數顯示
 function updateCountdownDisplay() {
     const timerEl = document.getElementById('countdownTimer');
     if (timerEl) {
@@ -413,6 +416,7 @@ function updateCountdownDisplay() {
     }
 }
 
+// 產生 QR Code（使用動態金鑰）
 function generateMemberCode() {
     if (!userId || !userData?.shopKey) return;
     const shopCode = userData.shopCode;
@@ -431,6 +435,7 @@ function generateRegCode() {
     q.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(codeData)}`;
 }
 
+// 🚀 快速重新整理（使用輕量 API）
 async function refreshAll() {
     if (!userId) return;
     const refreshBtn = document.querySelector('.asset-card button');
@@ -444,17 +449,21 @@ async function refreshAll() {
         const data = await res.json();
         
         if (data.success) {
+            // 更新點數顯示
             document.getElementById('pointsDisplay').innerText = data.points;
-            memberPoints = data.points;
+            // 更新 userData 中的點數和金鑰
             if (userData) {
                 userData.points = data.points;
                 userData.shopKey = data.shopKey;
                 userData.shopCode = data.shopCode;
             }
-            const qrData = `${data.shopCode}_${data.shopKey}_${userId}`;
-            const qrImg = document.getElementById('qrcode');
-            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
-            startCountdown(60);
+            // 重新產生 QR Code
+            if (userData) {
+                const qrData = `${data.shopCode}_${data.shopKey}_${userId}`;
+                const qrImg = document.getElementById('qrcode');
+                qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
+                startCountdown(60);
+            }
             showToast('✅ 資料已更新');
         } else {
             showToast('更新失敗，請稍後再試');
@@ -512,32 +521,17 @@ async function fetchData(isReload = false) {
         let responseText = await res.text();
         try { userData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
         document.getElementById('loading').style.display = 'none';
-        
         if (userData && userData.isMember === true) {
             document.getElementById('memberUI').style.display = 'block';
             document.getElementById('regUI').style.display = 'none';
-            
-            // 🔥 讀取折抵設定（對應你GAS的 campaign 邏輯）
-            memberPoints = userData.points || 0;
-            minSpend = userData.minSpend || 0;
-            maxRedeemRate = userData.maxRate || 0;
-            
-            document.getElementById('pointsDisplay').innerText = memberPoints;
+            const displayPoints = userData.points !== undefined ? userData.points : (userData.profile?.points || 0);
+            document.getElementById('pointsDisplay').innerText = displayPoints;
             document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
-            localStorage.removeItem("tempCustomerUserId");
-            if (window.customerUserId) delete window.customerUserId;
-            
         } else {
             document.getElementById('memberUI').style.display = 'none';
             document.getElementById('regUI').style.display = 'block';
-            if (userId && userId !== "") {
-                localStorage.setItem("tempCustomerUserId", userId);
-                window.customerUserId = userId;
-                console.log("✅ 已儲存新客 UserID:", userId);
-            }
-            
             if (referrerParam && referrerParam !== 'undefined' && referrerParam !== '') {
                 document.getElementById('regGiftArea').style.display = 'block';
                 let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
@@ -545,28 +539,12 @@ async function fetchData(isReload = false) {
                 document.getElementById('giftTitle').style.textAlign = "center";
                 document.getElementById('giftTip').style.textAlign = "center";
                 generateRegCode();
-                await createReferralCodeRecord(userId, referrerParam, currentFrom === "so" ? "swo" : "omp");
             }
         }
     } catch(e) { 
         console.error("Fetch Error:", e);
         showToast('資料載入失敗，請稍後再試');
         document.getElementById('loading').style.display = 'none';
-    }
-}
-
-async function createReferralCodeRecord(newUserId, referrerId, shopCode) {
-    try {
-        const url = `${GAS_URL}?action=createReferralRecord&newUserId=${encodeURIComponent(newUserId)}&referrerId=${encodeURIComponent(referrerId)}&shopCode=${encodeURIComponent(shopCode)}`;
-        const res = await fetch(url);
-        const result = await res.json();
-        if (result.success) {
-            console.log("✅ 招待碼記錄已建立");
-        } else {
-            console.log("⚠️ 招待碼記錄建立失敗:", result.error);
-        }
-    } catch(e) {
-        console.error("建立招待碼記錄錯誤:", e);
     }
 }
 
