@@ -226,25 +226,57 @@ function resetMember() {
 
 function parseScannedCode(scannedText) {
     let clean = String(scannedText).trim();
-    if (clean.indexOf("##") === 0) clean = clean.substring(2);
-    if (clean.toUpperCase().indexOf("GIFT_BY_") !== -1) return { type: "gift" };
     
-    if (clean.toUpperCase().indexOf("INV_") === 0) {
-        const inviteParts = clean.substring(4).split("_");
-        if (inviteParts.length === 3) {
-            return { type: "invite", shopCode: inviteParts[0], referrerId: inviteParts[1], newUserId: inviteParts[2] };
-        } else {
-            return { type: "invite", shopCode: inviteParts[0], referrerId: inviteParts[1], newUserId: "" };
+    // 處理 QR 參數格式
+    if (clean.indexOf("data=") > -1) {
+        clean = clean.split("data=")[1].split("&")[0];
+        clean = decodeURIComponent(clean);
+    }
+    
+    // 移除可能的前綴
+    if (clean.indexOf("##") === 0) clean = clean.substring(2);
+    
+    // ========== 情況1：招待 QR（新客）==========
+    // 格式：shopCode_shopKey_newUserId_refUserId (4段)
+    const parts = clean.split("_");
+    if (parts.length === 4) {
+        const shopCode = parts[0];
+        const shopKey = parts[1];
+        const newUserId = parts[2];
+        const refUserId = parts[3];
+        
+        // 驗證 shopCode 是否有效
+        if (shopCode === "omp" || shopCode === "swo") {
+            return { 
+                type: "invite",           // ✅ 標記為招待類型
+                shopCode: shopCode,
+                shopKey: shopKey,
+                newUserId: newUserId,
+                referrerId: refUserId
+            };
         }
     }
     
-    const parts = clean.split("_");
-    if (parts.length === 3 && (parts[0] === "omp" || parts[0] === "swo")) {
-        return { type: "member", userId: parts[2], shopCode: parts[0] };
+    // ========== 情況2：會員 QR（已註冊會員）==========
+    // 格式：shopCode_shopKey_userId (3段)
+    if (parts.length === 3) {
+        const shopCode = parts[0];
+        const shopKey = parts[1];
+        const userId = parts[2];
+        
+        if (shopCode === "omp" || shopCode === "swo") {
+            return { 
+                type: "member", 
+                userId: userId, 
+                shopCode: shopCode,
+                shopKey: shopKey
+            };
+        }
     }
+    
+    // ========== 情況3：純文字 ID（備用）==========
     return { type: "member", userId: clean };
 }
-
 async function onScanSuccess(scannedText) {
     if (!isLoggedIn) { showToast("請先登入"); return; }
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
@@ -257,30 +289,40 @@ async function onScanSuccess(scannedText) {
         showLoading("連線中...");
         
         if (parsed.type === "invite") {
-            const newUserId = parsed.newUserId;
-            const shopCode = parsed.shopCode;
-            const referrerId = parsed.referrerId;
-            
-            if (!newUserId) {
-                hideLoading();
-                showModal("⚠️ 招待碼格式錯誤，缺少新客編號");
-                return;
-            }
-            
-            const staffInfo = JSON.parse(localStorage.getItem("staffLogin") || "{}");
-            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=${encodeURIComponent(staffInfo.userId || "")}&staffName=${encodeURIComponent(staffInfo.name || "")}&staffBranch=${encodeURIComponent(staffInfo.branch || "")}&newUserId=${encodeURIComponent(newUserId)}&referrerId=${encodeURIComponent(referrerId)}&shopCode=${encodeURIComponent(shopCode)}`;
-            
-            const res = await fetch(url);
-            const result = await res.json();
-            hideLoading();
-            
-            if (result.success && result.isGift) {
-                showToast(`✅ 招待成功！歡迎新朋友`);
-            } else {
-                showModal(`⚠️ 招待失敗：${result.error || "未知錯誤"}`);
-            }
-            return;
+    const newUserId = parsed.newUserId;
+    const shopCode = parsed.shopCode;
+    const referrerId = parsed.referrerId;
+    const shopKey = parsed.shopKey;
+    
+    if (!newUserId) {
+        hideLoading();
+        showModal("⚠️ 招待碼格式錯誤，缺少新客編號");
+        return;
+    }
+    
+    showLoading("處理招待中...");
+    
+    // ✅ 呼叫後端 verifyScan
+    const staffInfo = JSON.parse(localStorage.getItem("staffLogin") || "{}");
+    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=${encodeURIComponent(staffInfo.userId || "")}&staffName=${encodeURIComponent(staffInfo.name || "")}&staffBranch=${encodeURIComponent(staffInfo.branch || "")}`;
+    
+    try {
+        const res = await fetch(url);
+        const result = await res.json();
+        hideLoading();
+        
+        if (result.success) {
+            // ✅ 顯示招待成功的文字訊息（不顯示 ID）
+            showModal(`🎁 ${result.message || "招待成功！請給新客招待禮物"}`);
+        } else {
+            showModal(`⚠️ 招待失敗：${result.message || "未知錯誤"}`);
         }
+    } catch (err) {
+        hideLoading();
+        showModal("連線失敗：" + err.message);
+    }
+    return;
+}
         
         if (parsed.type === "member") {
             if (!parsed.userId) {
