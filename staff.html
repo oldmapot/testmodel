@@ -249,7 +249,17 @@ function parseScannedCode(scannedText) {
     let clean = String(scannedText).trim();
     if (clean.indexOf("##") === 0) clean = clean.substring(2);
     if (clean.toUpperCase().indexOf("GIFT_BY_") !== -1) return { type: "gift" };
-    if (clean.toUpperCase().indexOf("INV_") === 0) return { type: "invite" };
+    
+    // 招待碼解析：INV_omp_USER123
+    if (clean.toUpperCase().indexOf("INV_") === 0) {
+        const inviteParts = clean.substring(4).split("_");  // 移除 INV_，剩下 ["omp", "USER123"]
+        return { 
+            type: "invite", 
+            shopCode: inviteParts[0] || "",
+            referrerId: inviteParts[1] || ""
+        };
+    }
+    
     const parts = clean.split("_");
     if (parts.length === 3 && (parts[0] === "omp" || parts[0] === "swo")) {
         return { type: "member", userId: parts[2] };
@@ -262,32 +272,82 @@ async function onScanSuccess(scannedText) {
     if (scanInterval) { clearInterval(scanInterval); scanInterval = null; }
     await closeCamera();
     if (navigator.vibrate) navigator.vibrate(200);
+    
+    // ========== 解析掃描內容 ==========
     const parsed = parseScannedCode(scannedText);
+    
     try {
         showLoading("連線中...");
-        const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
-        const res = await fetch(finalUrl, { method: "GET", mode: "cors" });
-        const data = await res.json();
-        hideLoading();
-        if (data.success && data.member) {
-            config = data.config;
-            customerId = data.member.userId;
-            currentPoints = data.member.points || 0;
-            memberLevel = data.member.level || "一般會員";
-            levelRate = data.member.levelRate || 1;
-            config.levelRate = levelRate;
-
-            document.getElementById('member-ui').style.display = 'block';
-            document.getElementById('form-ui').classList.remove('locked');
-            document.getElementById('cus-name').innerText = data.member.name;
-            document.getElementById('member-level').innerText = memberLevel;
-            document.getElementById('cus-pts').innerText = currentPoints;
-            document.getElementById('cus-total').innerText = data.member.totalSpend || 0;
-            document.getElementById('totalSpend').focus();
-            doCalc();
-        } else {
-            showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
+        
+        // ========== 招待碼流程（type === "invite"） ==========
+        if (parsed.type === "invite") {
+            // 取得新客的 UserID（從 localStorage 或全域變數）
+            const newUserId = localStorage.getItem("tempCustomerUserId") || window.customerUserId || "";
+            
+            if (!newUserId) {
+                hideLoading();
+                showModal("⚠️ 無法取得顧客編號，請確認顧客已加入 LINE 好友並重新整理頁面");
+                return;
+            }
+            
+            const staffInfo = JSON.parse(localStorage.getItem("staffLogin") || "{}");
+            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=${encodeURIComponent(staffInfo.userId || "")}&staffName=${encodeURIComponent(staffInfo.name || "")}&staffBranch=${encodeURIComponent(staffInfo.branch || "")}&newUserId=${encodeURIComponent(newUserId)}`;
+            
+            const res = await fetch(url);
+            const result = await res.json();
+            hideLoading();
+            
+            if (result.success && result.isGift) {
+                showToast(`✅ 招待成功！歡迎新朋友`);
+                document.getElementById('reader').style.display = "none";
+                setTimeout(() => {
+                    if (typeof closeModal === 'function') closeModal();
+                }, 2000);
+            } else {
+                showModal(`⚠️ 招待失敗：${result.error || "未知錯誤"}`);
+            }
+            return;
         }
+        
+        // ========== 一般會員碼流程（type === "member"） ==========
+        if (parsed.type === "member") {
+            if (!parsed.userId) {
+                hideLoading();
+                showModal("⚠️ 無效的 QR Code 格式");
+                return;
+            }
+            
+            const finalUrl = `${GAS_URL}?action=getMemberInfo&userId=${encodeURIComponent(parsed.userId)}&branch=${encodeURIComponent(staff.branch)}&t=${new Date().getTime()}`;
+            const res = await fetch(finalUrl, { method: "GET", mode: "cors" });
+            const data = await res.json();
+            hideLoading();
+            
+            if (data.success && data.member) {
+                config = data.config;
+                customerId = data.member.userId;
+                currentPoints = data.member.points || 0;
+                memberLevel = data.member.level || "一般會員";
+                levelRate = data.member.levelRate || 1;
+                config.levelRate = levelRate;
+
+                document.getElementById('member-ui').style.display = 'block';
+                document.getElementById('form-ui').classList.remove('locked');
+                document.getElementById('cus-name').innerText = data.member.name;
+                document.getElementById('member-level').innerText = memberLevel;
+                document.getElementById('cus-pts').innerText = currentPoints;
+                document.getElementById('cus-total').innerText = data.member.totalSpend || 0;
+                document.getElementById('totalSpend').focus();
+                doCalc();
+            } else {
+                showModal("⚠️ 查無此會員！<br>請確認顧客是否已加入 LINE 好友並完成註冊。");
+            }
+            return;
+        }
+        
+        // ========== 其他類型（gift 或其他） ==========
+        hideLoading();
+        showModal("⚠️ 無法識別的 QR Code 類型");
+        
     } catch (err) {
         hideLoading();
         showModal("系統連線失敗：" + err.message);
