@@ -118,13 +118,14 @@
     <div id="sideMenu" class="side-menu">
         <div class="side-menu-header"><h3>心意盒</h3></div>
         <div class="side-menu-items">
-            <button class="side-menu-item" onclick="openProfile(); closeSideMenu()">👤 個人資料</button>
-            <button class="side-menu-item" onclick="openReferral(); closeSideMenu()">👥 推薦名單</button>
-            <button class="side-menu-item" onclick="openPointHistory(); closeSideMenu()">📜 點數明細</button>
-            <button class="side-menu-item" onclick="openShopInfo(); closeSideMenu()">🏪 店面資訊</button>
-            <button class="side-menu-item" onclick="openRightsDetail(); closeSideMenu()">📋 會員權益</button>
-            <button class="side-menu-item" onclick="openLegalDetail(); closeSideMenu()">⚖️ 法務免責及管控聲明</button>
-        </div>
+    <button class="side-menu-item" onclick="openProfile(); closeSideMenu()">👤 個人資料</button>
+    <button class="side-menu-item" onclick="openGiftBox(); closeSideMenu()">🎁 心意寶盒</button>
+    <button class="side-menu-item" onclick="openReferral(); closeSideMenu()">👥 推薦名單</button>
+    <button class="side-menu-item" onclick="openPointHistory(); closeSideMenu()">📜 點數明細</button>
+    <button class="side-menu-item" onclick="openShopInfo(); closeSideMenu()">🏪 店面資訊</button>
+    <button class="side-menu-item" onclick="openRightsDetail(); closeSideMenu()">📋 會員權益</button>
+    <button class="side-menu-item" onclick="openLegalDetail(); closeSideMenu()">⚖️ 法務免責及管控聲明</button>
+</div>
     </div>
     
     <div class="asset-card">
@@ -450,7 +451,58 @@ function generateRegCode() {
         console.log("QR 已產生，新客:", userId, "推薦人:", cleanRefId);
     }
 }
-
+function openGiftBox() {
+    // 從 userData 中讀取優惠券資訊
+    let coupon = userData?.coupon;
+    
+    if (!coupon) {
+        openModal(`<div style="text-align:center; padding:20px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">🎁</div>
+            <div style="font-weight: bold; margin-bottom: 10px;">暫無優惠券</div>
+            <div style="color: #999;">目前沒有可用的優惠券</div>
+        </div>`);
+        return;
+    }
+    
+    // 檢查是否已使用或過期
+    if (coupon.status === "已使用") {
+        openModal(`<div style="text-align:center; padding:20px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+            <div style="font-weight: bold; margin-bottom: 10px;">優惠券已使用</div>
+            <div style="color: #999;">兌換時間：${coupon.redeemedAt || ''}</div>
+        </div>`);
+        return;
+    }
+    
+    // 檢查過期
+    let now = new Date();
+    let expiresAt = new Date(coupon.expiresAt);
+    if (now > expiresAt) {
+        openModal(`<div style="text-align:center; padding:20px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">⏰</div>
+            <div style="font-weight: bold; margin-bottom: 10px;">優惠券已過期</div>
+            <div style="color: #999;">有效期已過，無法兌換</div>
+        </div>`);
+        return;
+    }
+    
+    // 顯示可兌換的優惠券 QR Code
+    let qrContent = coupon.qrContent;
+    let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrContent)}`;
+    let expireDate = new Date(coupon.expiresAt).toLocaleDateString('zh-TW');
+    
+    openModal(`
+        <div style="text-align:center; padding:10px;">
+            <div style="font-size: 24px; font-weight: bold; color: var(--primary); margin-bottom: 15px;">🎁 新客招待禮</div>
+            <div style="margin: 15px 0;">
+                <img src="${qrUrl}" style="width: 180px; height: 180px; border-radius: 12px;">
+            </div>
+            <div style="font-size: 14px; color: #666; margin: 10px 0;">請出示此 QR Code 給店員掃描</div>
+            <div style="font-size: 12px; color: #d00; margin: 10px 0;">⚠️ 有效期至 ${expireDate}</div>
+            <div style="font-size: 12px; color: #999;">僅限使用一次，兌換後即失效</div>
+        </div>
+    `);
+}
 // 統一重新整理函數（同時更新 QR Code 和點數）
 async function refreshAll() {
     if (!userId) return;
