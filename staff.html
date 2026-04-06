@@ -303,13 +303,14 @@ async function onScanSuccess(scannedText) {
     showLoading("處理招待中...");
     
     // ✅ 呼叫後端 verifyScan
-    const staffInfo = JSON.parse(localStorage.getItem("staffLogin") || "{}");
-   console.log("=== 掃描時讀取的 staffInfo ===");
-console.log("staffInfo 完整內容:", staffInfo);
-console.log("staffInfo.name:", staffInfo.name);
-console.log("staffInfo.name 型態:", typeof staffInfo.name);
-console.log("==============================");        
-    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=${encodeURIComponent(staffInfo.userId || "")}&staffName=${encodeURIComponent(staffInfo.name || "")}&staffBranch=${encodeURIComponent(staffInfo.branch || "")}`;
+  // 🔥 直接用頁面真正的店員資料（100% 正確）
+const realStaffName = staff.name;         // 頁面有顯示的名字
+const realStaffBranch = staff.branch;     // 頁面有顯示的分店
+
+console.log("✅ 真正的店員名：", realStaffName);
+console.log("✅ 真正的分店：", realStaffBranch);
+
+const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
     
     try {
         const res = await fetch(url);
