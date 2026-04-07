@@ -519,15 +519,22 @@ async function refreshAll() {
         let newUserData;
         try { newUserData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
         
-        if (newUserData && newUserData.isMember === true) {
-            // 更新點數顯示
-            const displayPoints = newUserData.points !== undefined ? newUserData.points : (newUserData.profile?.points || 0);
-            document.getElementById('pointsDisplay').innerText = displayPoints;
-            // 更新 userData
-            userData = newUserData;
-            // 重新產生 QR Code
-            generateMemberCode();
-            showToast('✅ 資料已更新');
+       if (newUserData && newUserData.isMember === true) {
+    // 🏆 強化版點數抓取邏輯
+    // 優先抓 points，如果沒有，再抓 member 裡的 points，最後才是 profile
+    const displayPoints = newUserData.points ?? 
+                          (newUserData.member ? newUserData.member.points : 0) ?? 
+                          (newUserData.profile ? newUserData.profile.points : 0);
+
+    document.getElementById('pointsDisplay').innerText = displayPoints;
+    
+    // 更新全域變數
+    userData = newUserData;
+    
+    // 重新產生 QR Code 並顯示提示
+    generateMemberCode();
+    showToast('✅ 資料已更新');
+}
         } else {
             showToast('資料更新失敗，請稍後再試');
         }
