@@ -316,9 +316,7 @@ async function onScanSuccess(scannedText) {
         const result = await res.json();
         hideLoading();
         
-        // 用 alert 顯示 result 的內容
-        alert("result: " + JSON.stringify(result));
-        
+             
         if (result.success) {
             showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
         } else {
