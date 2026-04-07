@@ -366,83 +366,92 @@ function getDeviceName() {
             document.getElementById('branchModal').style.display = 'flex';
         }
 
-        // ✅ 確認分店（帶入 loginId 和 deviceId）
-        function confirmBranch() {
-            const branch = document.getElementById('branchSelect').value;
-            if (!branch) {
-                showError('⚠️ 請一定要選擇分店才能進入系統！');
-                return;
-            }
+       // ✅ 確認分店（這裡幫妳把抓到的 IP 傳到下一頁 URL）
+    function confirmBranch() {
+        const branch = document.getElementById('branchSelect').value;
+        if (!branch) {
+            showError('⚠️ 請一定要選擇分店才能進入系統！');
+            return;
+        }
 
-            // 跳轉並傳遞 姓名 + 分店 + loginId + deviceId
-            const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(currentStaff.loginId)}&role=${encodeURIComponent(currentStaff.role || '')}`;
-            window.location.href = url;
+        // 保持妳原本的跳轉邏輯，補上 clientIp
+        const url = `staff.html?name=${encodeURIComponent(currentStaff.name)}&branch=${encodeURIComponent(branch)}&loginId=${encodeURIComponent(currentStaff.loginId)}&role=${encodeURIComponent(currentStaff.role || '')}&clientIp=${encodeURIComponent(currentStaff.clientIp || '')}`;
+        window.location.href = url;
+    }
+
+    // 🚀 核心登入函數（補上 IP 抓取，其餘不動）
+    async function handleLogin(event) {
+        event.preventDefault();
+        
+        const userId = document.getElementById('userId').value.trim();
+        const keyword = document.getElementById('keyword').value.trim();
+        const loginBtn = document.getElementById('loginBtn');
+        const errorMsgDiv = document.getElementById('errorMsg');
+        
+        if (!userId || !keyword) {
+            showError('請輸入完整的帳號和密碼');
+            return;
         }
         
-        async function handleLogin(event) {
-            event.preventDefault();
-            
-            const userId = document.getElementById('userId').value.trim();
-            const keyword = document.getElementById('keyword').value.trim();
-            const loginBtn = document.getElementById('loginBtn');
-            const errorMsgDiv = document.getElementById('errorMsg');
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<span class="spinner"></span> 驗證中...';
+        errorMsgDiv.style.display = 'none';
+        
+        try {
+            // 🌐 【新增：抓取 IP】這是唯一多加的東西
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipRes.json();
+            const clientIp = ipData.ip;
+
             const deviceId = getDeviceId();
-const deviceName = getDeviceName();
-const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}`;
-            if (!userId || !keyword) {
-                showError('請輸入完整的帳號和密碼');
-                return;
-            }
+            const deviceName = getDeviceName();
+
+            // ✅ 拼接妳原本的 verifyUrl，並帶入 clientIp
+            const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&deviceId=${encodeURIComponent(deviceId)}&deviceName=${encodeURIComponent(deviceName)}&clientIp=${encodeURIComponent(clientIp)}`;
             
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="spinner"></span> 驗證中...';
-            errorMsgDiv.style.display = 'none';
+            const response = await fetch(verifyUrl);
+            const result = await response.json();
             
-            try {
-                // ✅ 加入 deviceId 參數
-                const deviceId = getDeviceId();
-                const verifyUrl = `${GAS_URL}?action=staffLogin&userId=${encodeURIComponent(userId)}&keyword=${encodeURIComponent(keyword)}&deviceId=${encodeURIComponent(deviceId)}`;
-                const response = await fetch(verifyUrl);
-                const result = await response.json();
+            if (result.success) {
+                // 儲存完整的登入資訊
+                currentStaff = {
+                    name: result.name,
+                    role: result.role || "夥伴",
+                    loginId: result.loginId || userId,
+                    clientIp: clientIp // 存起來給後面 confirmBranch 用
+                };
                 
-                if (result.success) {
-                    // 儲存完整的登入資訊（包含 loginId）
-                    currentStaff = {
-                        name: result.name,
-                        role: result.role || "夥伴",
-                        loginId: result.loginId || userId
-                    };
-                    
-                    // 驗證通過 → 強制彈窗選擇分店
-                    await showBranchModal(currentStaff);
-                    
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = '登入系統';
-                } else {
-                    showError(result.message || '帳號或密碼錯誤，請重新輸入');
-                    loginBtn.disabled = false;
-                    loginBtn.innerHTML = '登入系統';
-                }
+                // 驗證通過 → 彈窗選擇分店
+                await showBranchModal(currentStaff);
                 
-            } catch (error) {
-                console.error('登入失敗:', error);
-                showError('網路連線失敗，請稍後再試');
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '登入系統';
+            } else {
+                // 這裡會顯示妳後端傳回來的「非店內網路」或「帳密錯誤」
+                showError(result.message || '帳號或密碼錯誤，請重新輸入');
                 loginBtn.disabled = false;
                 loginBtn.innerHTML = '登入系統';
             }
-        }
-        
-        function showError(message) {
-            const errorMsgDiv = document.getElementById('errorMsg');
-            errorMsgDiv.textContent = message;
-            errorMsgDiv.style.display = 'block';
             
-            setTimeout(() => {
-                errorMsgDiv.style.display = 'none';
-            }, 3000);
+        } catch (error) {
+            console.error('登入失敗:', error);
+            showError('網路連線失敗，請檢查 WIFI 是否連上');
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '登入系統';
         }
+    }
+
+    function showError(message) {
+        const errorMsgDiv = document.getElementById('errorMsg');
+        errorMsgDiv.textContent = message;
+        errorMsgDiv.style.display = 'block';
         
-        document.getElementById('userId').focus();
-    </script>
+        setTimeout(() => {
+            errorMsgDiv.style.display = 'none';
+        }, 3000);
+    }
+    
+    document.getElementById('userId').focus();
+</script>
 </body>
 </html>
