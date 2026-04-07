@@ -305,28 +305,31 @@ async function onScanSuccess(scannedText) {
     try {
         showLoading("連線中...");
     // ========== 優惠券兌換 ==========
-        if (parsed.type === "coupon") {
-            const realStaffName = staff.name;
-            const realStaffBranch = staff.branch;
-            
-            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
-            
-            try {
-                const res = await fetch(url);
-                const result = await res.json();
-                hideLoading();
-                
-                if (result.success) {
-                    showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
-                } else {
-                    showModal(`⚠️ ${result.message || "兌換失敗"}`);
-                }
-            } catch (err) {
-                hideLoading();
-                showModal("連線失敗：" + err.message);
-            }
-            return;
+       if (parsed.type === "coupon") {
+    const realStaffName = staff.name;
+    const realStaffBranch = staff.branch;
+    
+    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
+    
+    try {
+        const res = await fetch(url);
+        const result = await res.json();
+        hideLoading();
+        
+        // 用 alert 顯示 result 的內容
+        alert("result: " + JSON.stringify(result));
+        
+        if (result.success) {
+            showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
+        } else {
+            showModal(`⚠️ ${result.message || "兌換失敗"}`);
         }
+    } catch (err) {
+        hideLoading();
+        showModal("連線失敗：" + err.message);
+    }
+    return;
+}
         if (parsed.type === "invite") {
     const newUserId = parsed.newUserId;
     const shopCode = parsed.shopCode;
