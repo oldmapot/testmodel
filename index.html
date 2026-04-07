@@ -519,43 +519,15 @@ async function refreshAll() {
         let newUserData;
         try { newUserData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
         
-       if (newUserData && (newUserData.isMember === true || newUserData.success === true)) {
-    // 1. 抓取點數 (用最傳統的 if 判斷，確保舊手機也能跑)
-    var finalPoints = 0;
-    if (newUserData.points !== undefined && newUserData.points !== null) {
-        finalPoints = newUserData.points;
-    } else if (newUserData.member && newUserData.member.points !== undefined) {
-        finalPoints = newUserData.member.points;
-    } else if (newUserData.profile && newUserData.profile.points !== undefined) {
-        finalPoints = newUserData.profile.points;
-    }
-
-    // 2. 更新畫面 (加上 try-catch 防止找不到元素導致整段掛掉)
-    try {
-        var pointsEl = document.getElementById('pointsDisplay');
-        if (pointsEl) {
-            pointsEl.innerText = String(finalPoints);
-        }
-        
-        // 更新全域變數
-        userData = newUserData;
-
-        // 3. 處理 QR Code
-        if (typeof generateMemberCode === "function") {
+        if (newUserData && newUserData.isMember === true) {
+            // 更新點數顯示
+            const displayPoints = newUserData.points !== undefined ? newUserData.points : (newUserData.profile?.points || 0);
+            document.getElementById('pointsDisplay').innerText = displayPoints;
+            // 更新 userData
+            userData = newUserData;
+            // 重新產生 QR Code
             generateMemberCode();
-        }
-        
-        // 4. 關閉讀取中動畫 (假設你的 loading 叫 loadingOverlay)
-        var loader = document.getElementById('loadingOverlay') || document.getElementById('loader');
-        if (loader) {
-            loader.style.display = 'none';
-        }
-
-        showToast('✅ 資料已更新');
-    } catch (err) {
-        console.log("更新介面發生錯誤:", err);
-    }
-}
+            showToast('✅ 資料已更新');
         } else {
             showToast('資料更新失敗，請稍後再試');
         }
