@@ -520,19 +520,25 @@ async function refreshAll() {
         try { newUserData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
         
        if (newUserData && newUserData.isMember === true) {
-    // 🏆 強化版點數抓取邏輯
-    // 優先抓 points，如果沒有，再抓 member 裡的 points，最後才是 profile
-    const displayPoints = newUserData.points ?? 
-                          (newUserData.member ? newUserData.member.points : 0) ?? 
-                          (newUserData.profile ? newUserData.profile.points : 0);
+    // 🏆 三層防護抓點數邏輯
+    // 先檢查最外層，再檢查 member 層，最後檢查 profile 層
+    const displayPoints = (newUserData.points !== undefined && newUserData.points !== null) ? newUserData.points : 
+                          (newUserData.member && newUserData.member.points !== undefined) ? newUserData.member.points : 
+                          (newUserData.profile && newUserData.profile.points !== undefined) ? newUserData.profile.points : 0;
 
-    document.getElementById('pointsDisplay').innerText = displayPoints;
+    // 更新畫面顯示
+    const pointsElement = document.getElementById('pointsDisplay');
+    if (pointsElement) {
+        pointsElement.innerText = Number(displayPoints).toLocaleString(); // 加上千分位，更好看
+    }
     
-    // 更新全域變數
+    // 更新全域變數，確保後續結帳邏輯拿到的也是最新資料
     userData = newUserData;
     
     // 重新產生 QR Code 並顯示提示
-    generateMemberCode();
+    if (typeof generateMemberCode === "function") {
+        generateMemberCode();
+    }
     showToast('✅ 資料已更新');
 }
         } else {
