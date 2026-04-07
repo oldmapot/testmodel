@@ -235,6 +235,23 @@ function parseScannedCode(scannedText) {
     
     // 移除可能的前綴
     if (clean.indexOf("##") === 0) clean = clean.substring(2);
+
+// ========== 情況0：優惠券 QR（GIFT_BY_ 開頭）==========
+    if (clean.startsWith("GIFT_BY_")) {
+        const couponCode = clean.substring(8); // 去掉 GIFT_BY_
+        const parts = couponCode.split("_");
+        if (parts.length === 3) {
+            const shopCode = parts[0];
+            const shopKey = parts[1];
+            const userId = parts[2];
+            return {
+                type: "coupon",  // 新的類型
+                shopCode: shopCode,
+                shopKey: shopKey,
+                userId: userId
+            };
+        }
+    }
     
     // ========== 情況1：招待 QR（新客）==========
     // 格式：shopCode_shopKey_newUserId_refUserId (4段)
@@ -287,7 +304,29 @@ async function onScanSuccess(scannedText) {
     
     try {
         showLoading("連線中...");
-        
+    // ========== 優惠券兌換 ==========
+        if (parsed.type === "coupon") {
+            const realStaffName = staff.name;
+            const realStaffBranch = staff.branch;
+            
+            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
+            
+            try {
+                const res = await fetch(url);
+                const result = await res.json();
+                hideLoading();
+                
+                if (result.success) {
+                    showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
+                } else {
+                    showModal(`⚠️ ${result.message || "兌換失敗"}`);
+                }
+            } catch (err) {
+                hideLoading();
+                showModal("連線失敗：" + err.message);
+            }
+            return;
+        }
         if (parsed.type === "invite") {
     const newUserId = parsed.newUserId;
     const shopCode = parsed.shopCode;
