@@ -451,6 +451,83 @@ function generateRegCode() {
         console.log("QR 已產生，新客:", userId, "推薦人:", cleanRefId);
     }
 }
+// 輪詢相關變數
+let couponCheckInterval = null;
+let currentCheckCount = 0;
+const MAX_CHECK_COUNT = 30; // 最多檢查 60 秒 (30次 * 2秒)
+
+// 停止輪詢檢查
+function stopCouponCheck() {
+    if (couponCheckInterval) {
+        clearInterval(couponCheckInterval);
+        couponCheckInterval = null;
+    }
+    currentCheckCount = 0;
+}
+
+// 檢查優惠券狀態
+async function checkCouponStatus() {
+    if (!userId) return;
+    
+    try {
+        const url = `${GAS_URL}?action=checkCouponStatus&userId=${userId}&t=${Date.now()}`;
+        const res = await fetch(url);
+        const result = await res.json();
+        
+        // 如果優惠券已被使用
+        if (result.status === "已使用") {
+            stopCouponCheck();
+            
+            // 顯示兌換成功畫面
+            openModal(`
+                <div style="text-align:center; padding:20px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+                    <div style="font-weight: bold; font-size: 20px; margin-bottom: 10px;">兌換成功！</div>
+                    <div style="color: #666; margin-bottom: 20px;">新客招待禮已兌換完成</div>
+                    <div style="font-size: 14px; color: #999;">2 秒後自動返回首頁...</div>
+                </div>
+            `);
+            
+            // 2 秒後關閉 modal 並重新整理首頁
+            setTimeout(() => {
+                closeModal();
+                // 重新整理會員資料（點數、QR Code）
+                refreshAll();
+                showToast("✅ 優惠券已兌換");
+            }, 2000);
+            
+            return true; // 表示已兌換
+        }
+        
+        return false; // 尚未兌換
+    } catch(e) {
+        console.error("檢查優惠券狀態失敗:", e);
+        return false;
+    }
+}
+
+// 開始輪詢檢查優惠券狀態
+function startCouponCheck() {
+    stopCouponCheck();
+    currentCheckCount = 0;
+    
+    couponCheckInterval = setInterval(async () => {
+        currentCheckCount++;
+        
+        // 超過最大檢查次數，停止輪詢（避免無限檢查）
+        if (currentCheckCount >= MAX_CHECK_COUNT) {
+            stopCouponCheck();
+            console.log("輪詢逾時，停止檢查");
+            return;
+        }
+        
+        const isRedeemed = await checkCouponStatus();
+        if (isRedeemed) {
+            // 已兌換，輪詢已在 checkCouponStatus 中停止
+            return;
+        }
+    }, 2000); // 每 2 秒檢查一次
+}    
 function openGiftBox() {
     // 從 userData 中讀取優惠券資訊
     let coupon = userData?.coupon;
@@ -500,8 +577,12 @@ function openGiftBox() {
             <div style="font-size: 14px; color: #666; margin: 10px 0;">請出示此 QR Code 給店員掃描</div>
             <div style="font-size: 12px; color: #d00; margin: 10px 0;">⚠️ 有效期至 ${expireDate}</div>
             <div style="font-size: 12px; color: #999;">僅限使用一次，兌換後即失效</div>
+            <div style="font-size: 12px; color: #06C755; margin-top: 10px;">⏳ 兌換後將自動關閉</div>
         </div>
     `);
+    
+    // ✅ 啟動輪詢檢查（監聽兌換狀態）
+    startCouponCheck();
 }
 // 統一重新整理函數（同時更新 QR Code 和點數）
 async function refreshAll() {
@@ -784,7 +865,15 @@ function autoCopyShare() {
 }
 
 function openModal(html) { document.getElementById('modalBody').innerHTML = html; document.getElementById('modal').style.display = 'flex'; }
-function closeModal() { document.getElementById('modal').style.display = 'none'; if (pendingCheckboxId) { document.getElementById(pendingCheckboxId).checked = true; pendingCheckboxId = null; } }
+function closeModal() { 
+    document.getElementById('modal').style.display = 'none'; 
+    if (pendingCheckboxId) { 
+        document.getElementById(pendingCheckboxId).checked = true; 
+        pendingCheckboxId = null; 
+    }
+    // ✅ 關閉 modal 時停止輪詢
+    stopCouponCheck();
+}
 
 document.getElementById('regPhone').addEventListener('input', function(e) { let v = e.target.value.replace(/\D/g, '').slice(0, 10); if (v.length > 7) v = v.slice(0,4)+'-'+v.slice(4,7)+'-'+v.slice(7); else if (v.length > 4) v = v.slice(0,4)+'-'+v.slice(4); e.target.value = v; });
 
