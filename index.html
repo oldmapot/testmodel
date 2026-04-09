@@ -1,883 +1,1141 @@
+// ==================== 工作表 ID 常量 ====================
+var SS_SETTING = "16X4mEMLVkOujvsMOiNvs5OqlZYeUzZIympol7JeiiTA";
+var SS_MAIN = "1XCi6vs8MOGOxKr8u5ByvDOvoUEWNRiSHiE99ojILGq4";
+var SS_BACKUP = "1Cz00h63plQnh9P5FuLXbzD2ZPFOthToKlWhKszZ6HdM";
 
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>老娘的一點心意/內測版</title>
-    <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
-    <style>
-        :root { --primary: #8b0000; --bg: #fdf5e6; --card-bg: #fff; --text: #333; --light-text: #666; --action-btn: #beb1a8; --brand-btn: #ab545a; --success: #06C755; }
-        .theme-so { --primary: #b57c82; --bg: #FFF9E6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); margin: 0; padding-bottom: 40px; color: var(--text); overflow-x: hidden; }
-        
-        #loading { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; flex-direction: column; gap: 20px; }
-        .loader-icon { width: 60px; height: 35px; background: #333; border-radius: 0 0 25px 25px; position: relative; border: 3px solid #222; }
-        .loader-icon.omp::after { content: '♨'; position: absolute; top: -30px; left: 12px; font-size: 28px; color: var(--primary); animation: steam 1.2s infinite; }
-        .loader-icon.so { width: 55px; height: 40px; background: #ffcc00; border-radius: 15px 15px 8px 8px; border-top: 10px solid #663300; animation: wobble 0.7s infinite; }
-        @keyframes steam { 0%{opacity:0;transform:translateY(0)}50%{opacity:1}100%{opacity:0;transform:translateY(-20px)} }
-        @keyframes wobble { 0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)} }
-
-        .header { background: var(--primary); color: #fff; padding: 12vw 20px; text-align: center; border-radius: 0 0 30px 30px; position: relative; }
-        .menu-icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); font-size: 28px; cursor: pointer; background: none; border: none; color: #fff; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; z-index: 10; }
-        .welcome-quote { font-size: 4.5vw; opacity: 0.95; margin-bottom: 8px; min-height: 24px; }
-        .main-title { font-size: 8.5vw; font-weight: 900; }
-
-        .side-menu { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--card-bg); box-shadow: 2px 0 12px rgba(0,0,0,0.15); z-index: 10000; transition: left 0.3s ease; overflow-y: auto; }
-        .side-menu.open { left: 0; }
-        .side-menu-header { background: var(--primary); color: #fff; padding: 30px 20px; text-align: center; }
-        .side-menu-header h3 { margin: 0; font-size: 24px; font-weight: bold; }
-        .side-menu-items { padding: 20px 0; }
-        .side-menu-item { display: block; width: 100%; padding: 18px 24px; background: none; border: none; text-align: left; font-size: 18px; color: var(--text); cursor: pointer; border-bottom: 1px solid #f0f0f0; font-weight: bold; }
-        .side-menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; display: none; }
-        .side-menu-overlay.show { display: block; }
-/* 讓側欄用flex布局，只改法務按鈕 */
-.side-menu-items {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 120px); /* 減去header高度，避免超出 */
-  padding-bottom: 20px; /* 底部留間距，不貼邊 */
-}
-
-/* 只針對法務免責（最後一個按鈕） */
-.side-menu-item:last-child {
-  margin-top: auto !important;
-  text-align: center !important;
-  font-size: 14px !important;
-  color: #999 !important;
-  font-weight: normal !important;
-  border: none !important;
-  padding: 12px 0 !important;
-  margin-left: auto !important;
-  margin-right: auto !important;
-  width: auto !important;
-  display: inline-block !important;
-}
-        .asset-card { 
-            background: #fff; border-radius: 15px; padding: 4vw 5vw; margin: 20px 20px 10px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); display: flex; align-items: center; 
-            justify-content: center; gap: 5vw; flex-wrap: nowrap;
-        }
-
-        .code-section { background: var(--card-bg); margin:0 20px 20px; padding:28px 20px; border-radius:20px; text-align:center; }
-        .code-container { display: flex; justify-content: center; align-items: center; min-height: 200px; margin-bottom: 12px; }
-        #qrcode { width: 55vw; height: 55vw; max-width: 220px; max-height: 220px; }
-        .code-hint { font-size: 12px; color: #999; margin-top: 12px; }
-        .countdown-timer { font-size: 14px; color: #d00; font-weight: bold; margin-top: 8px; }
-
-        .brand-actions { display: flex; gap: 10px; margin: 0 20px 20px; }
-        .event-brand-btn { flex: 1; padding: 15px; border-radius: 16px; background: var(--brand-btn); color: #fff; font-weight: bold; font-size: 4.2vw; border: none; cursor: pointer; }
-        .share-btn { display: block; width: calc(100% - 40px); margin: 0 auto; padding: 18px; border-radius: 20px; background: var(--success); color: #fff; font-weight: bold; font-size: 4.8vw; border: none; cursor: pointer; }
-
-        @media screen and (min-width: 450px) {
-            .welcome-quote { font-size: 18px; }
-            .main-title { font-size: 32px; }
-            .event-brand-btn { font-size: 16px; }
-            .share-btn { font-size: 18px; }
-        }
-
-        #regUI { display: none; padding: 40px 24px; }
-        .reg-input { width: 100%; padding: 16px; border-radius: 14px; border: 1px solid #ddd; font-size: 16px; box-sizing: border-box; margin-top: 10px; height: 55px; }
-        .reg-btn { width: 100%; padding: 18px; background: var(--primary); color: #fff; border: none; border-radius: 16px; font-weight: bold; margin-top: 30px; cursor: pointer; }
-        
-        .terms-section { background: #fef9f0; border-radius: 16px; padding: 16px; margin-top: 20px; border: 1px solid #ffe0b5; }
-        .terms-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #ffe0b5; }
-        .terms-item:last-child { border-bottom: none; }
-        .terms-item label .red-text { color: #d00; font-weight: bold; cursor: pointer; }
-
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 30000; }
-        .modal-card { background: var(--card-bg); width: 92%; max-width: 420px; border-radius: 24px; overflow: hidden; }
-        .modal-body { padding: 24px; max-height: 65vh; overflow-y: auto; }
-        .welcome-card { background: linear-gradient(135deg, #8b0000, #ff69b4); color: #fff; padding: 30px 24px; border-radius: 24px; text-align: center; }
-        .share-modal-content { text-align: center; padding: 10px; }
-        .share-title { font-size: 22px; color: var(--primary); font-weight: 900; margin-bottom: 15px; }
-        .toast { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); background: rgba(0,0,0,0.75); color: #fff; padding: 12px 20px; border-radius: 12px; z-index: 9999; display: none; }
-        
-        .reg-gift-code-container { display: flex; justify-content: center; align-items: center; margin-bottom: 8px; }
-        
-        .shop-info-container { max-height: 60vh; overflow-y: auto; }
-        .shop-info-item { margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
-    </style>
-</head>
-<body>
-
-<div id="loading">
-    <div id="loader" class="loader-icon omp"></div>
-    <div id="loading-text" style="font-weight: bold; color: var(--primary); font-size: 16px; text-align:center; padding:0 20px;"></div>
-</div>
-
-<div id="memberUI" style="display:none">
-    <div class="header">
-        <button class="menu-icon" onclick="openSideMenu()">☰</button>
-        <div class="welcome-quote" id="welcomeQuote"></div>
-        <div class="main-title">老娘的一點心意</div>
-    </div>
-
-    <div id="sideMenuOverlay" class="side-menu-overlay" onclick="closeSideMenu()"></div>
-    <div id="sideMenu" class="side-menu">
-        <div class="side-menu-header"><h3>心意盒</h3></div>
-        <div class="side-menu-items">
-    <button class="side-menu-item" onclick="openProfile(); closeSideMenu()">👤 個人資料</button>
-    <button class="side-menu-item" onclick="openGiftBox(); closeSideMenu()">🎁 心意寶盒</button>
-    <button class="side-menu-item" onclick="openReferral(); closeSideMenu()">👥 推薦名單</button>
-    <button class="side-menu-item" onclick="openPointHistory(); closeSideMenu()">📜 點數明細</button>
-    <button class="side-menu-item" onclick="openShopInfo(); closeSideMenu()">🏪 店面資訊</button>
-    <button class="side-menu-item" onclick="openRightsDetail(); closeSideMenu()">📋 會員權益</button>
-    <button class="side-menu-item" onclick="openLegalDetail(); closeSideMenu()">⚖️ 法務免責及管控聲明</button>
-</div>
-    </div>
-    
-    <div class="asset-card">
-        <div style="display: flex; flex-direction: column; align-items: center; border-right: 1px solid #eee; padding-right: 5vw; flex: 1;">
-            <div style="font-size: 4vw; max-font-size: 16px; font-weight: bold; color: #666; letter-spacing: 1px;">可用資產</div>
-            <div style="font-size: 4vw; max-font-size: 16px; font-weight: bold; color: #666; letter-spacing: 6px; margin-top: 2px;">點數</div>
-        </div>
-
-        <div style="text-align: center; display: flex; flex-direction: column; align-items: center; flex: 1.2;">
-            <div id="pointsDisplay" style="font-size: 10vw; max-font-size: 38px; font-weight: bold; color: var(--primary); line-height: 1.2;">--</div>
-            
-            <button onclick="refreshAll()" style="margin-top: 8px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 2px 10px; color: #888; font-size: 12px; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
-                🔄 重新整理
-            </button>
-        </div>
-    </div>
-
-    <div class="code-section">
-        <div class="code-container">
-            <img id="qrcode">
-        </div>
-        <div class="code-hint">結帳時請出示此碼，結帳後離開櫃台恕不補集點</div>
-        <div class="countdown-timer" id="countdownTimer">⏱️ 有效期限：60 秒後失效</div>
-    </div>
-
-    <div class="brand-actions">
-        <button class="event-brand-btn" onclick="openEvents('omp')">老娘精選</button>
-        <button class="event-brand-btn" onclick="openEvents('so')">一點甜好康</button>
-    </div>
-    
-    <button class="share-btn" onclick="autoCopyShare()">🚀 分享推薦碼，享好友消費回饋</button>
-</div>
-
-<div id="regUI">
-    <div id="regGiftArea" class="reg-qr-tip" style="display:none;">
-        <div id="giftTitle" style="color:var(--primary); font-weight:bold; margin-bottom:10px; font-size: 18px;"></div>
-        <div class="reg-gift-code-container">
-            <img id="regGiftQR" style="width: 160px; height: 160px;">
-        </div>
-        <div id="giftTip" style="font-size:12px; color:#8b0000; margin-top: 8px;">請先出示此碼給店員掃描領取招待<br>領完後記得完成下方註冊喔！</div>
-    </div>
-    <h2 style="text-align:center; color:var(--primary); margin-bottom: 20px;">新會員註冊</h2>
-    <input id="regName" class="reg-input" placeholder="姓名 *">
-    <input id="regPhone" class="reg-input" placeholder="手機 09XX-XXX-XXX *" maxlength="12">
-    <div style="margin-top: 10px;">
-        <label style="display:block; font-weight:bold; color:var(--primary); margin-bottom: 5px; margin-left:5px;">🎂 生日 *</label>
-        <input type="date" id="regBirthday" class="reg-input" style="margin-top:0;">
-        <div style="font-size:12px; color:#ab545a; margin-top: 8px; line-height: 1.4; background: #fff1f1; padding: 10px; border-radius: 10px; border: 1px solid #ffebeb;">⚠️ 註記：享生日專屬優惠，註冊後不可修改。</div>
-    </div>
-    <div class="terms-section">
-        <div class="terms-item">
-            <input type="checkbox" id="agreeRights">
-            <label>我已閱讀並理解 <span class="red-text" onclick="openRightsModal(event)">「會員權益」</span>*</label>
-        </div>
-        <div class="terms-item">
-            <input type="checkbox" id="agreeLegal">
-            <label>我已閱讀並同意遵守 <span class="red-text" onclick="openLegalModal(event)">「法務免責及管控聲明」</span>*</label>
-        </div>
-    </div>
-    <button class="reg-btn" onclick="doRegister()">完成註冊</button>
-</div>
-
-<div class="modal-overlay" id="modal" onclick="closeModal()">
-    <div class="modal-card" onclick="event.stopPropagation()">
-        <div id="modalBody" class="modal-body"></div>
-        <button style="width:100%; padding:18px; border:none; background:#eee; font-weight:bold;" onclick="closeModal()">關閉</button>
-    </div>
-</div>
-<div class="toast" id="toast"></div>
-
-<script>
-const GAS_URL = "https://script.google.com/macros/s/AKfycbw9CjVEzarKVTQmVQvGKGQCxb6kxpzQeHmyFbweOCZ8KTxNa40ZuytbVFgbKBvqKRxZ/exec";
-const LIFF_ID = "2009629897-4eV8mdFu";
-let userId = '', userData = null, currentFrom = 'omp', referrerParam = '', userToken = '', pendingCheckboxId = null;
-
-// QR Code 倒數計時相關變數
-let countdownInterval = null;
-let currentCountdown = 60;
-
-function showToast(msg) { let t = document.getElementById('toast'); t.innerText = msg; t.style.display = 'block'; setTimeout(() => { t.style.display = 'none'; }, 2000); }
-function openSideMenu() { document.getElementById('sideMenu').classList.add('open'); document.getElementById('sideMenuOverlay').classList.add('show'); }
-function closeSideMenu() { document.getElementById('sideMenu').classList.remove('open'); document.getElementById('sideMenuOverlay').classList.remove('show'); }
-
-function openRightsModal(e) { 
-  if(e) e.stopPropagation(); 
-  pendingCheckboxId = 'agreeRights'; 
-  
-  openModal(`
-    <style>
-      .rights-container { font-size: 14px; line-height: 1.6; color: #333; }
-      .rule-row { display: flex; margin-bottom: 12px; }
-      .rule-title { font-weight: bold; flex-shrink: 0; min-width: 105px; color: #000; }
-      .rule-body { flex-grow: 1; }
-      .sub-item { margin-bottom: 4px; display: block; }
-    </style>
-
-    <h3 style="color:var(--primary); text-align:center; margin-bottom:15px;">📋 會員權益</h3>
-    
-    <div class="rights-container">
-      <div class="rule-row">
-        <div class="rule-title">◆ 點數價值</div>
-        <div class="rule-body"> 1 點 = NT$1 元。</div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 個人集點</div>
-        <div class="rule-body">
-          <span class="sub-item">「實付金額（折抵後）」之 5% 計算。</span>
-          <span class="sub-item">點數自取得日起 12 個月內有效。</span>
-        </div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 推薦分紅</div>
-        <div class="rule-body">
-          <span class="sub-item">以被推薦人「實付金額」之 2% 計算。</span>
-          <span class="sub-item">點數自取得日起 6 個月內有效。</span>
-          <span class="sub-item"><b>資格限制</b>：若推薦人超過 <b>90 天</b>無消費紀錄，系統將暫停發放分紅。</span>
-        </div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 生效時間</div>
-        <div class="rule-body">取得日之「隔日」生效（明日 00:00 後方可使用）。</div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 購買餐券</div>
-        <div class="rule-body">
-          <span class="sub-item">購買餐券不適用集點及折抵活動。</span>
-          </div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 餐券消費</div>
-        <div class="rule-body">扣除面額後之「剩餘實付額」提撥 2% 點數。</div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 折抵限制</div>
-        <div class="rule-body">
-          <span class="sub-item">頻次限制：每帳號每日每店限折抵一次。</span>
-          <span class="sub-item">特殊檔期：指定活動、節慶檔期暫停折抵，僅可集點，實際依店內或系統公告為主。</span>
-        </div>
-      </div>
-
-      <div class="rule-row">
-        <div class="rule-title">◆ 未盡事宜</div>
-        <div class="rule-body">依店內或系統最新公告為主。</div>
-      </div>
-    </div>
-  `); 
+// ==================== 表單欄位索引對照表 (統一用中文) ====================
+// 1. 會員中心 (對應 Firestore: members)
+var MEMBER_COL = {
+  "加入日期": 0,
+  "會員ID": 1,
+  "姓名": 2,
+  "電話": 3,
+  "生日": 4,
+  "推薦人ID": 5,
+  "累積消費": 6,
+  "剩餘點數": 7,
+  "會員狀態": 8,
+  "最後消費日期": 9,
+  "會員等級": 10,
+  "總消費金額": 11,
+  "分店名稱": 12,
+  "等級倍率": 13,
+  "第一次喚醒日期": 14,
+  "第二次喚醒日期": 15,
+  "凍結起始日": 16,
+  "分紅狀態": 17,
+  "等級生效日": 18,
+  "等級到期日": 19,
+  "緩衝期結束日": 20,
+  "會員保級完成年份": 21
 };
-function openLegalModal(e) { 
-  if(e) e.stopPropagation(); 
-  pendingCheckboxId = 'agreeLegal'; 
-  
-  openModal(`
-    <style>
-      .legal-container { font-size: 14px; line-height: 1.6; color: #333; }
-      .legal-row { display: flex; margin-bottom: 12px; align-items: flex-start; }
-      .legal-title { font-weight: bold; flex-shrink: 0; min-width: 105px; color: #d9534f; } /* 法務類用紅色調提醒 */
-      .legal-body { flex-grow: 1; }
-    </style>
 
-    <h3 style="color:var(--primary); text-align:center; margin-bottom:15px;">⚖️ 法務免責及管控聲明</h3>
-    
-    <div class="legal-container">
-      <div class="legal-row">
-        <div class="legal-title">◆ 禁止轉讓</div>
-        <div class="legal-body">點數不開放轉讓予他人或合併帳號使用，僅限於本平台指定之店家進行消費折抵。</div>
-      </div>
+// 2. 流水帳紀錄 (對應 Firestore: transactions)
+var LOG_COL = {
+  "交易ID": 0,
+  "交易日期": 1,
+  "會員ID": 2,
+  "品牌": 3,
+  "分店": 4,
+  "分類": 5,
+  "消費金額": 6,
+  "使用餐券": 7,
+  "使用點數折抵": 8,
+  "實際付款": 9,
+  "獲得點數": 10,
+  "備註": 11,
+  "分享回饋點數": 12,
+  "生效日": 13,
+  "到期日": 14,
+  "過期狀態": 15,
+  "經手店員": 16,
+  "推薦人ID": 17,
+  "活動名稱": 18,
+  "預警紀錄": 19,
+  "訊息發送狀態": 20
+};
 
-      <div class="legal-row">
-        <div class="legal-title">◆ 非現金資產</div>
-        <div class="legal-body">本平台發放之點數屬無償贈與之紅利，不具貨幣價值，不得要求兌換現金。</div>
-      </div>
+// 3. 品牌回饋設定 (對應 Firestore: brand_settings)
+var BRAND_SETTING_COL = {
+  "品牌": 0,
+  "低消門檻": 1,
+  "折抵上限": 2,
+  "集點比例": 3,
+  "推薦人比例": 4,
+  "餐券比例": 5,
+  "生日贈點數": 6,
+  "壽星專屬禮": 7,
+  "等級1（一般會員）門檻": 8,
+  "等級2（黃金會員）門檻": 9,
+  "等級3（白金會員）門檻": 10,
+  "等級1點數倍率": 11,
+  "等級2點數倍率": 12,
+  "等級3點數倍率": 13
+};
 
-      <div class="legal-row">
-        <div class="legal-title">◆ 活動終止權</div>
-        <div class="legal-body">本平台及所屬店家保有隨時修改、暫停或終止點數贈與及折抵活動之權利，相關異動將以官方公告為準。</div>
-      </div>
+// 4. 參數設定 (對應 Firestore: system_params)
+var PARAM_COL = {
+  "參數名稱": 0,
+  "參數值": 1
+};
 
-      <div class="legal-row">
-        <div class="legal-title">◆ 營運調整權</div>
-        <div class="legal-body">若因系統升級、營運政策調整、店家歇業或不可抗力因素（如自然災害、系統受駭等），導致點數失效，會員不得要求補發或損害賠償。</div>
-      </div>
+// 常用參數 Key 名稱定義
+var PARAM_KEYS = {
+  "CHANNEL_TOKEN_OMP": "Channel_Token_omp",
+  "CHANNEL_TOKEN_SWO": "Channel_Token_swo",
+  "MGM_COMMISSION_RATE": "MGM_Commission_Rate",
+  "REWARD_EXPIRY_MONTHS": "Reward_Expiry_Months",
+  "BIRTHDAY_EXPIRY_DAYS": "Birthday_Expiry_Days",
+  "POINTS_EXPIRE_EMERGENCY_THRESHOLD": "PointsExpireEmergencyThreshold",
+  "MIN_SPEND_THRESHOLD_OMP": "MIN_SPEND_THRESHOLD_omp",
+  "DEFAULT_EARN_RATE_OMP": "DEFAULT_EARN_RATE_omp",
+  "DEFAULT_REDEEM_RATE_OMP": "DEFAULT_REDEEM_RATE_omp",
+  "TICKET_RATE_OMP": "TICKET_RATE_omp"
+};
 
-      <div class="legal-row">
-        <div class="legal-title">◆ 誠信原則</div>
-        <div class="legal-body">
-          為維護公平權益，系統將監測並判別<b>異常集點、虛假推薦、規避邏輯</b>等行為。若經查證屬實，店家有權逕行凍結帳號、作廢點數並取消資格，且不另行通知。
-        </div>
-      </div>
+// 5. 卡片模板 (對應 Firestore: card_templates)
+var CARD_TEMPLATE_COL = {
+  "模板ID": 0,
+  "品牌/分店": 1,
+  "觸發場景": 2,
+  "卡片類型": 3,
+  "卡片標題": 4,
+  "卡片內容(JSON)": 5,
+  "備註": 6
+};
 
-      <div class="legal-row">
-        <div class="legal-title">◆ 最終解釋權</div>
-        <div class="legal-body">本公司保有對所有活動規則與點數機制之最終解釋權。</div>
-      </div>
-    </div>
-  `); 
-}
-function openRightsDetail() { pendingCheckboxId = null; openRightsModal(); }
-function openLegalDetail() { pendingCheckboxId = null; openLegalModal(); }
+// 6. 訊息模板 (對應 Firestore: message_templates)
+var MESSAGE_TEMPLATE_COL = {
+  "訊息ID": 0,
+  "品牌/分店": 1,
+  "類型": 2,
+  "標題": 3,
+  "內容模板": 4,
+  "備註": 5
+};
 
-function openShopInfo() {
-    if (!userData?.shopInfo?.length) { 
-        openModal(`<p style="text-align:center;">店面資訊載入中...</p>`); 
-        return; 
-    }
-    
-    let html = `<h3 style="color:var(--primary); text-align:center; margin-bottom:20px;">🏪 店面資訊</h3><div class="shop-info-container">`;
-    
-    userData.shopInfo.forEach(shop => {
-        html += `<div class="shop-info-item" style="background:#fff; padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">`;
-        html += `<div style="font-size:20px; font-weight:bold; color:var(--primary); margin-bottom:15px; border-left:4px solid var(--primary); padding-left:10px;">${shop.name}</div>`;
-        
-        let socialButtons = [];
-        
-        if (shop.details && shop.details.length) {
-            shop.details.forEach(detail => {
-                let val = detail.value ? detail.value.trim() : "";
-                let label = detail.label || "";
-                
-                if (val.toLowerCase().startsWith('http')) {
-                    let logo = "";
-                    if (label.toUpperCase().includes("IG") || label.includes("Instagram")) {
-                        logo = `<img src="https://upload.wikimedia.org/wikipedia/commons/e/e7/Instagram_logo_2016.svg" style="width:16px; vertical-align:middle; margin-right:5px;">`;
-                    } else if (label.toUpperCase().includes("FB") || label.includes("Facebook")) {
-                        logo = `<img src="https://upload.wikimedia.org/wikipedia/commons/b/b8/2021_Facebook_icon.svg" style="width:16px; vertical-align:middle; margin-right:5px;">`;
-                    }
-                    socialButtons.push({ label: label, url: val, logo: logo });
-                } else {
-                    html += `<div style="margin-bottom:12px;">`;
-                    html += `<div style="font-weight:bold; color:#888; font-size:12px; margin-bottom:4px;">${label}</div>`;
-                    html += `<div style="color:var(--text); line-height:1.5; font-size:15px; white-space: pre-wrap; padding-left: 20px;">${val || '暫無資訊'}</div>`;
-                    html += `</div>`;
-                }
-            });
+// 7. 活動設定 (對應 Firestore: campaigns)
+var CAMPAIGN_COL = {
+  "活動名稱": 0,
+  "開始日期": 1,
+  "結束日期": 2,
+  "本人消費集點比": 3,
+  "推薦回饋比": 4,
+  "是否禁止折抵": 5,
+  "適用品牌": 6
+};
+
+// 8. 招待碼紀錄 (對應 Firestore: referrals)
+var REFERRAL_COL = {
+  "產生時間": 0,
+  "新客UserID": 1,
+  "推薦人ID": 2,
+  "品牌": 3,
+  "狀態": 4,
+  "使用時間": 5,
+  "經手店員": 6
+};
+
+// 9. 店員管理 (對應 Firestore: staff_management)
+var STAFF_COL = {
+  "店員姓名": 0,
+  "LINE_UserID": 1,
+  "分店": 2,
+  "權限等級": 3,
+  "登入密碼": 4,
+  "登入帳號": 5,
+  "設備名稱": 6,
+  "登入時間": 7,
+  "有效時間": 8,
+  "啟用狀態": 9,
+  "Device Token": 10
+};
+
+// 10. IP權限設定 (對應 Firestore: ip_whitelist)
+var IP_WHITELIST_COL = {
+  "分店": 0,
+  "IP 位址": 1,
+  "啟用": 2,
+  "備註": 3,
+  "更新時間": 4
+};
+
+// 11. 店員登入紀錄 (對應 Firestore: staff_login_logs)
+var STAFF_LOGIN_LOG_COL = {
+  "登入時間": 0,
+  "登入 ID": 1,
+  "登入設備ID": 2,
+  "姓名": 3,
+  "登入分店": 4,
+  "登出時間": 5,
+  "異常警示": 6
+};
+
+// 12. 金鑰設定 (對應 Firestore: shop_keys)
+var SHOP_KEY_COL = {
+  "品牌名稱": 0,
+  "品牌": 1,
+  "品牌代號": 2,
+  "金鑰1": 3,
+  "金鑰2": 4,
+  "金鑰3": 5,
+  "金鑰4": 6,
+  "金鑰5": 7,
+  "金鑰6": 8,
+  "金鑰7": 9,
+  "金鑰8": 10,
+  "金鑰9": 11,
+  "金鑰10": 12
+};
+
+// 13. 文句池 (對應 Firestore: quote_pool)
+var QUOTE_POOL_COL = {
+  "品牌": 0,
+  "歡迎詞": 1,
+  "等候詞": 2
+};
+
+// 14. 優惠活動設定 (對應 Firestore: promotions)
+var PROMOTION_COL = {
+  "分店": 0,
+  "內容": 1,
+  "顯示日期_開始": 2,
+  "顯示日期_結束": 3,
+  "活動連結": 4
+};
+
+// 15. 餐券銷售統計 (對應 Firestore: ticket_sales)
+var TICKET_SALES_COL = {
+  "交易序號": 0,
+  "日期時間": 1,
+  "會員ID": 2,
+  "分店": 3,
+  "購買金額": 4,
+  "回饋點數": 5,
+  "經手店員": 6,
+  "職級": 7
+};
+
+// 16. 餐券使用明細 (對應 Firestore: ticket_usage)
+var TICKET_USAGE_COL = {
+  "時間": 0,
+  "序號": 1,
+  "餐券編號": 2,
+  "UID": 3,
+  "購買金額": 4,
+  "已使用": 5,
+  "剩餘額度": 6,
+  "狀態": 7,
+  "分店": 8,
+  "經手人": 9
+};
+
+// 17. 店面設定 (對應 Firestore: shops)
+// 結構：分店欄位從 B1, C1, D1... 標題欄位從 A2, A3, A4...
+var SHOP_SETTING = {
+  "分店起始列": 1,
+  "分店起始欄": 2,  // B欄
+  "標題起始列": 2,
+  "標題欄": 0       // A欄
+};
+// ==================== 金鑰設定模組 ====================
+function getShopKeys(shopCode) {
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    var keySheet = set.getSheetByName("金鑰設定");
+    if (!keySheet) return [];
+    var data = keySheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][SHOP_KEY_COL["品牌代號"]] === shopCode) {
+        var keys = [];
+        for (var j = SHOP_KEY_COL["金鑰1"]; j <= SHOP_KEY_COL["金鑰10"]; j++) {
+          var keyValue = data[i][j];
+          if (keyValue && keyValue.toString().trim() !== "") {
+            keys.push(keyValue.toString().trim());
+          }
         }
-        
-        if (socialButtons.length > 0) {
-            html += `<div style="display: flex; gap: 10px; margin-top: 15px;">`;
-            socialButtons.forEach(btn => {
-                html += `
-                <div style="flex: 1;">
-                    <div style="font-weight:bold; color:#888; font-size:12px; margin-bottom:6px; text-align:center;">${btn.label}</div>
-                    <a href="${btn.url}" target="_blank" style="display:flex; align-items:center; justify-content:center; background:#f8f9fa; color:#333; text-decoration:none; font-weight:bold; padding:10px 5px; border-radius:8px; font-size:13px; border:1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                        ${btn.logo}點我前往
-                    </a>
-                </div>`;
-            });
-            html += `</div>`;
+        return keys;
+      }
+    }
+    return [];
+  } catch(e) {
+    console.error("getShopKeys error: " + e.toString());
+    return [];
+  }
+}
+
+function getRandomKey(shopCode) {
+  var keys = getShopKeys(shopCode);
+  if (keys.length === 0) return null;
+  return keys[Math.floor(Math.random() * keys.length)];
+}
+
+function validateKey(shopCode, key) {
+  var keys = getShopKeys(shopCode);
+  return keys.includes(key);
+}
+
+function getParam(paramName) {
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    var sheet = set.getSheetByName("參數設定");
+    if (!sheet) return null;
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][PARAM_COL["參數名稱"]] === paramName) return data[i][PARAM_COL["參數值"]];
+    }
+    return null;
+  } catch(e) {
+    return null;
+  }
+}
+
+function getGeneralParam(paramName) {
+  return getParam(paramName);
+}
+
+// ==================== 文句池讀取 ====================
+function getQuotes(branch) {
+  var result = { welcomeQuote: "", loadingTexts: [] };
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    var sheet = set.getSheetByName("文句池");
+    if (!sheet) return result;
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (data[i][QUOTE_POOL_COL["品牌"]] === branch) {
+        if (data[i][QUOTE_POOL_COL["歡迎詞"]]) result.welcomeQuote = data[i][QUOTE_POOL_COL["歡迎詞"]];
+        if (data[i][QUOTE_POOL_COL["等候詞"]]) result.loadingTexts.push(data[i][QUOTE_POOL_COL["等候詞"]]);
+      }
+    }
+  } catch(e) {}
+  return result;
+}
+
+// ==================== 優惠活動讀取 ====================
+function getPromotions(branch) {
+  var promotions = [];
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    var sheet = set.getSheetByName("優惠活動設定");
+    if (!sheet) return promotions;
+    var data = sheet.getDataRange().getValues();
+    var today = new Date();
+    for (var i = 1; i < data.length; i++) {
+      var shopName = data[i][PROMOTION_COL["分店"]];
+      var content = data[i][PROMOTION_COL["內容"]];
+      var startDate = data[i][PROMOTION_COL["顯示日期_開始"]] ? new Date(data[i][PROMOTION_COL["顯示日期_開始"]]) : null;
+      var endDate = data[i][PROMOTION_COL["顯示日期_結束"]] ? new Date(data[i][PROMOTION_COL["顯示日期_結束"]]) : null;
+      var link = data[i][PROMOTION_COL["活動連結"]] || "";
+      if (!content) continue;
+      if (shopName !== branch) continue;
+      if (startDate && startDate > today) continue;
+      if (endDate && endDate < today) continue;
+      promotions.push({ content: content, link: link });
+    }
+  } catch(e) {}
+  return promotions;
+}
+
+// ==================== 店面資訊讀取（遇到空值停止） ====================
+
+function getShopInfo() {
+  var shopInfo = [];
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    var shopSheet = set.getSheetByName("店面設定");
+    if (!shopSheet) return shopInfo;
+
+    var shopData = shopSheet.getDataRange().getValues();
+    if (shopData.length === 0) return shopInfo;
+
+    // 第 0 列是標籤（地址、電話、營業時間...）
+    // 從第 1 欄（B 欄）開始往右掃，遇到第一個空值就停
+    for (var col = 1; col < shopData[0].length; col++) {
+      var shopName = shopData[0][col];
+
+      // ✅ 遇到第一個空白店名 → 停止整個掃描（不再往後讀）
+      if (!shopName || shopName.toString().trim() === "") break;
+
+      var details = [];
+      for (var row = 1; row < shopData.length; row++) {
+        var label = shopData[row][0];
+        var value = shopData[row][col];
+
+        if (value && value.toString().trim() !== "" && value.toString().toUpperCase() !== "XXXX") {
+          details.push({ label: label, value: value.toString() });
         }
-        html += `</div>`;
-    });
-    html += `</div>`;
-    openModal(html);
-}
+      }
 
-// 停止倒數計時
-function stopCountdown() {
-    if (countdownInterval) {
-        clearInterval(countdownInterval);
-        countdownInterval = null;
+      if (details.length > 0) {
+        shopInfo.push({ name: shopName.toString(), details: details });
+      }
     }
+  } catch (e) {
+    // 靜默失敗，可選用 Logger.log(e)
+  }
+  return shopInfo;
 }
 
-// 開始倒數計時
-function startCountdown(seconds) {
-    stopCountdown();
-    currentCountdown = seconds;
-    updateCountdownDisplay();
-    countdownInterval = setInterval(() => {
-        currentCountdown--;
-        updateCountdownDisplay();
-        if (currentCountdown <= 0) {
-            stopCountdown();
-            // 倒數歸零，自動刷新
-            refreshAll();
-        }
-    }, 1000);
-}
-
-// 更新倒數顯示
-function updateCountdownDisplay() {
-    const timerEl = document.getElementById('countdownTimer');
-    if (timerEl) {
-        timerEl.innerHTML = `⏱️ 有效期限：${currentCountdown} 秒後失效`;
-    }
-}
-
-// 產生 QR Code（使用動態金鑰）
-function generateMemberCode() {
-    if (!userId || !userData?.shopKey) return;
-    const shopCode = userData.shopCode;   // "omp" 或 "swo"
-    const randomKey = userData.shopKey;   // 後端給的隨機金鑰
-    const qrData = `${shopCode}_${randomKey}_${userId}`;
-    const qrImg = document.getElementById('qrcode');
-    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(qrData)}`;
-    // 重置倒數計時（60秒）
-    startCountdown(60);
-}
-
-function generateRegCode() {
-    if (!userData || !userData.shopCode) {
-        console.error("尚未取得店面金鑰資料");
-        return;
-    }
-
-    let rawRef = referrerParam; 
-    if (!rawRef || rawRef === 'undefined') return;
-
-    let cleanRefId = rawRef.split('|')[0];
-    
-    // ✅ QR 內容：分店_金鑰_新客ID_推薦人ID
-    const codeData = `${userData.shopCode}_${userData.shopKey}_${userId}_${cleanRefId}`;
-    
-    const qrImg = document.getElementById('regGiftQR');
-    if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(codeData)}`;
-        qrImg.style.display = "block";
-        console.log("QR 已產生，新客:", userId, "推薦人:", cleanRefId);
-    }
-}
-// 輪詢相關變數
-let couponCheckInterval = null;
-let currentCheckCount = 0;
-const MAX_CHECK_COUNT = 30; // 最多檢查 60 秒 (30次 * 2秒)
-
-// 停止輪詢檢查
-function stopCouponCheck() {
-    if (couponCheckInterval) {
-        clearInterval(couponCheckInterval);
-        couponCheckInterval = null;
-    }
-    currentCheckCount = 0;
-}
-
-// 檢查優惠券狀態
-async function checkCouponStatus() {
-    if (!userId) return;
-    
-    try {
-        const url = `${GAS_URL}?action=checkCouponStatus&userId=${userId}&t=${Date.now()}`;
-        const res = await fetch(url);
-        const result = await res.json();
-        
-        // 如果優惠券已被使用
-        if (result.status === "已使用") {
-            stopCouponCheck();
-            
-            // 顯示兌換成功畫面
-            openModal(`
-                <div style="text-align:center; padding:20px;">
-                    <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
-                    <div style="font-weight: bold; font-size: 20px; margin-bottom: 10px;">兌換成功！</div>
-                    <div style="color: #666; margin-bottom: 20px;">新客招待禮已兌換完成</div>
-                    <div style="font-size: 14px; color: #999;">2 秒後自動返回首頁...</div>
-                </div>
-            `);
-            
-            // 2 秒後關閉 modal 並重新整理首頁
-            setTimeout(() => {
-                closeModal();
-                // 重新整理會員資料（點數、QR Code）
-                refreshAll();
-                showToast("✅ 優惠券已兌換");
-            }, 2000);
-            
-            return true; // 表示已兌換
-        }
-        
-        return false; // 尚未兌換
-    } catch(e) {
-        console.error("檢查優惠券狀態失敗:", e);
+// ==================== 招待紀錄表操作 ====================
+function recordReferralClick(uid, refId, linkTimestamp, from) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var sheet = main.getSheetByName("招待紀錄表");
+    if (!sheet) sheet = main.insertSheet("招待紀錄表");
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(uid).trim()) {
         return false;
+      }
     }
+    var now = new Date();
+    var brand = (from === "so") ? "一點甜" : "老娘鍋";
+    sheet.appendRow([now, uid, refId, brand, "已領取/待註冊", now, ""]);
+    return true;
+  } catch(e) {
+    console.error("recordReferralClick error: " + e.toString());
+    return false;
+  }
 }
 
-// 開始輪詢檢查優惠券狀態
-function startCouponCheck() {
-    stopCouponCheck();
-    currentCheckCount = 0;
-    
-    couponCheckInterval = setInterval(async () => {
-        currentCheckCount++;
-        
-        // 超過最大檢查次數，停止輪詢（避免無限檢查）
-        if (currentCheckCount >= MAX_CHECK_COUNT) {
-            stopCouponCheck();
-            console.log("輪詢逾時，停止檢查");
-            return;
-        }
-        
-        const isRedeemed = await checkCouponStatus();
-        if (isRedeemed) {
-            // 已兌換，輪詢已在 checkCouponStatus 中停止
-            return;
-        }
-    }, 2000); // 每 2 秒檢查一次
-}    
-function openGiftBox() {
-    // 從 userData 中讀取優惠券資訊
-    let coupon = userData?.coupon;
-    
-    if (!coupon) {
-        openModal(`<div style="text-align:center; padding:20px;">
-            <div style="font-size: 48px; margin-bottom: 15px;">🎁</div>
-            <div style="font-weight: bold; margin-bottom: 10px;">暫無優惠券</div>
-            <div style="color: #999;">目前沒有可用的優惠券</div>
-        </div>`);
-        return;
-    }
-    
-    // 檢查是否已使用或過期
-    if (coupon.status === "已使用") {
-        openModal(`<div style="text-align:center; padding:20px;">
-            <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
-            <div style="font-weight: bold; margin-bottom: 10px;">優惠券已使用</div>
-            <div style="color: #999;">兌換時間：${coupon.redeemedAt || ''}</div>
-        </div>`);
-        return;
-    }
-    
-    // 檢查過期
-    let now = new Date();
-    let expiresAt = new Date(coupon.expiresAt);
-    if (now > expiresAt) {
-        openModal(`<div style="text-align:center; padding:20px;">
-            <div style="font-size: 48px; margin-bottom: 15px;">⏰</div>
-            <div style="font-weight: bold; margin-bottom: 10px;">優惠券已過期</div>
-            <div style="color: #999;">有效期已過，無法兌換</div>
-        </div>`);
-        return;
-    }
-    
-    // 顯示可兌換的優惠券 QR Code
-    let qrContent = coupon.qrContent;
-    let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrContent)}`;
-    let expireDate = new Date(coupon.expiresAt).toLocaleDateString('zh-TW');
-    
-    openModal(`
-        <div style="text-align:center; padding:10px;">
-            <div style="font-size: 24px; font-weight: bold; color: var(--primary); margin-bottom: 15px;">🎁 新客招待禮</div>
-            <div style="margin: 15px 0;">
-                <img src="${qrUrl}" style="width: 180px; height: 180px; border-radius: 12px;">
-            </div>
-            <div style="font-size: 14px; color: #666; margin: 10px 0;">請出示此 QR Code 給店員掃描</div>
-            <div style="font-size: 12px; color: #d00; margin: 10px 0;">⚠️ 有效期至 ${expireDate}</div>
-            <div style="font-size: 12px; color: #999;">僅限使用一次，兌換後即失效</div>
-            <div style="font-size: 12px; color: #06C755; margin-top: 10px;">⏳ 兌換後將自動關閉</div>
-        </div>
-    `);
-    
-    // ✅ 啟動輪詢檢查（監聽兌換狀態）
-    startCouponCheck();
-}
-// 統一重新整理函數（同時更新 QR Code 和點數）
-async function refreshAll() {
-    if (!userId) return;
-    try {
-        // 顯示載中（可選）
-        const refreshBtn = document.querySelector('.asset-card button');
-        if (refreshBtn) refreshBtn.disabled = true;
-        
-        // 重新獲取會員資料
-        const url = `${GAS_URL}?action=checkID&userId=${userId}&from=${currentFrom}&referrerId=${encodeURIComponent(referrerParam)}&t=${Date.now()}`;
-        let res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        let responseText = await res.text();
-        let newUserData;
-        try { newUserData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
-        
-        if (newUserData && newUserData.isMember === true) {
-            // 更新點數顯示
-            const displayPoints = newUserData.points !== undefined ? newUserData.points : (newUserData.profile?.points || 0);
-            document.getElementById('pointsDisplay').innerText = displayPoints;
-            // 更新 userData
-            userData = newUserData;
-            // 重新產生 QR Code
-            generateMemberCode();
-            showToast('✅ 資料已更新');
+function checkReferralRecord(uid) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var sheet = main.getSheetByName("招待紀錄表");
+    if (!sheet) return { valid: false, referrerId: null };
+    var data = sheet.getDataRange().getValues();
+    var now = new Date();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(uid).trim()) {
+        var createTime = data[i][REFERRAL_COL["產生時間"]];
+        var referrerId = data[i][REFERRAL_COL["推薦人ID"]];
+        if (!createTime) return { valid: false, referrerId: null };
+        var diffDays = (now - createTime) / (1000 * 60 * 60 * 24);
+        if (diffDays <= 7) {
+          sheet.getRange(i + 1, REFERRAL_COL["狀態"] + 1).setValue("✅已註冊/綁定成功");
+          return { valid: true, referrerId: referrerId };
         } else {
-            showToast('資料更新失敗，請稍後再試');
+          sheet.getRange(i + 1, REFERRAL_COL["狀態"] + 1).setValue("⏰逾時失效(超過7天)");
+          return { valid: false, referrerId: null };
         }
-    } catch(e) {
-        console.error("Refresh Error:", e);
-        showToast('重新整理失敗，請稍後再試');
-    } finally {
-        const refreshBtn = document.querySelector('.asset-card button');
-        if (refreshBtn) refreshBtn.disabled = false;
+      }
     }
+    return { valid: false, referrerId: null };
+  } catch(e) {
+    console.error("checkReferralRecord error: " + e.toString());
+    return { valid: false, referrerId: null };
+  }
 }
 
-async function initLiff() {
-    const urlParams = new URLSearchParams(window.location.search);
-    currentFrom = urlParams.get('from') || 'omp';
-    
-    let rawReferrer = urlParams.get('referrer');
-    if (rawReferrer) {
-        try {
-            referrerParam = decodeURIComponent(rawReferrer);
-        } catch(e) {
-            referrerParam = rawReferrer;
-        }
-    } else {
-        referrerParam = '';
+function checkReferralTableExists(userId) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var referralTable = main.getSheetByName("招待紀錄表");
+    if (!referralTable) return false;
+    var data = referralTable.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(userId).trim()) {
+        return true;
+      }
     }
-    referrerParam = referrerParam.trim();
-    
-    const loadingText = document.getElementById('loading-text');
-    if (currentFrom === 'so') {
-        document.body.classList.add('theme-so');
-        document.getElementById('loader').className = 'loader-icon so';
-        loadingText.innerText = "正在為你的生活，加入一點甜...";
-    } else {
-        loadingText.innerText = "老娘正在翻帳本，幫你算驚喜...";
-    }
-    try {
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) { liff.login(); return; }
-        userId = (await liff.getProfile()).userId;
-        await fetchData();
-    } catch(e) { 
-        console.error('LIFF init error:', e);
-        showToast('初始化失敗，請重新開啟頁面'); 
-        document.getElementById('loading').style.display = 'none';
-    }
+    return false;
+  } catch(e) {
+    return false;
+  }
 }
 
-async function fetchData(isReload = false) {
+function getReferralRecord(userId) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var referralTable = main.getSheetByName("招待紀錄表");
+    if (!referralTable) return null;
+    var data = referralTable.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(userId).trim()) {
+        return { referrerId: data[i][REFERRAL_COL["推薦人ID"]], brand: data[i][REFERRAL_COL["品牌"]], status: data[i][REFERRAL_COL["狀態"]] };
+      }
+    }
+    return null;
+  } catch(e) {
+    return null;
+  }
+}
+
+// ==================== 核心查詢函數 ====================
+function checkMember(uid, branch, from, urlRefId) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var memSheet = main.getSheetByName("會員中心");
+    var shopCode = (from === "so") ? "swo" : "omp";
+    var randomKey = getRandomKey(shopCode);
+    var quotes = getQuotes(branch);
+    var ompPromotions = getPromotions("老娘鍋");
+    var soPromotions = getPromotions("一點甜");
+    var shopInfo = getShopInfo();
+    
+    var r = {
+      isMember: false, profile: {}, points: 0,
+      welcomeQuote: quotes.welcomeQuote,
+      loadingTexts: quotes.loadingTexts.length > 0 ? quotes.loadingTexts : ["✨ 歡迎光臨 ✨"],
+      myReferrer: "無", myReferrals: [], history: [],
+      ompEvents: ompPromotions.length > 0 ? ompPromotions.map(function(p) { return p.content; }) : ["目前暫無活動，敬請期待"],
+      soEvents: soPromotions.length > 0 ? soPromotions.map(function(p) { return p.content; }) : ["目前暫無活動，敬請期待"],
+      shopCode: shopCode, shopKey: randomKey, shopInfo: shopInfo, expiredLink: false
+    };
+
+    var targetId = String(uid).trim();
+    
+    // 輔助函數：安全從 Firestore 取值
+    function getStringValue(field) {
+      if (!field) return "";
+      if (typeof field === "string") return field;
+      if (field.stringValue !== undefined) return field.stringValue;
+      return "";
+    }
+    
+    function getNumberValue(field) {
+      if (!field) return 0;
+      if (typeof field === "number") return field;
+      if (field.integerValue !== undefined) return Number(field.integerValue);
+      if (field.doubleValue !== undefined) return Number(field.doubleValue);
+      return 0;
+    }
+    
+    var couponData = getFirestoreDocument("coupons", targetId);
+    if (couponData) {
+      r.coupon = {
+        status: getStringValue(couponData.status),
+        qrContent: getStringValue(couponData.qrContent),
+        expiresAt: getStringValue(couponData.expiresAt),
+        redeemedAt: getStringValue(couponData.redeemedAt)
+      };
+    } else {
+      r.coupon = null;
+    }
+    
+    var firestoreData = getFirestoreDocument("members", targetId);
+    if (firestoreData) {
+      r.isMember = true;
+      
+      // 修正點數讀取：改用「剩餘點數」而不是「剩餘點」
+      var ptsField = firestoreData["剩餘點數"] || firestoreData["剩餘點"];
+      r.points = getNumberValue(ptsField);
+      
+      // 修正個人資料：將中文欄位轉換成前端期待的英文欄位
+      r.profile = {
+        name: getStringValue(firestoreData["姓名"]),
+        phone: getStringValue(firestoreData["電話"]),
+        birthday: formatBirthday(getStringValue(firestoreData["生日"])),
+        level: getStringValue(firestoreData["等級"]) || "一般會員",
+        totalSpent: getNumberValue(firestoreData["累計消費"] || firestoreData["累積消費"])
+      };
+      
+      console.log("✅ 從 Firestore 同步讀取會員成功:", targetId);
+      console.log("Profile:", JSON.stringify(r.profile));
+    } else {
+      var mem = memSheet.getDataRange().getValues();
+      for (var i = 1; i < mem.length; i++) {
+        if (String(mem[i][MEMBER_COL["會員ID"]]).trim() === targetId) {
+          r.isMember = true;
+          r.points = Number(mem[i][MEMBER_COL["剩餘點數"]]) || 0;
+          r.profile = {
+            name: mem[i][MEMBER_COL["姓名"]] || "",
+            phone: mem[i][MEMBER_COL["電話"]] || "",
+            birthday: mem[i][MEMBER_COL["生日"]] || "",
+            level: mem[i][MEMBER_COL["會員等級"]] || "一般會員",
+            totalSpent: Number(mem[i][MEMBER_COL["總消費金額"]]) || 0
+          };
+          break;
+        }
+      }
+    }
+    
     try {
-        const url = `${GAS_URL}?action=checkID&userId=${userId}&from=${currentFrom}&referrerId=${encodeURIComponent(referrerParam)}&t=${Date.now()}`;
-        let res = await fetch(url);
-        if (!res.ok) { throw new Error(`HTTP ${res.status}`); }
-        let responseText = await res.text();
-        
-        try { userData = JSON.parse(responseText); } catch(e) { throw new Error("伺服器回應格式錯誤"); }
-        
-        document.getElementById('loading').style.display = 'none';
+      var mem = memSheet.getDataRange().getValues();
+      for (var i = 1; i < mem.length; i++) {
+        if (String(mem[i][MEMBER_COL["推薦人ID"]]).trim() === targetId) {
+          r.myReferrals.push({ 
+            name: mem[i][MEMBER_COL["姓名"]] || "未知", 
+            date: Utilities.formatDate(new Date(mem[i][MEMBER_COL["加入日期"]]), "GMT+8", "yyyy/MM/dd") 
+          });
+        }
+      }
+    } catch(e) {}
 
-        // --- 1. 已是會員的情況 ---
-        if (userData && userData.isMember === true) {
-            document.getElementById('memberUI').style.display = 'block';
-            document.getElementById('regUI').style.display = 'none';
-            const displayPoints = userData.points !== undefined ? userData.points : (userData.profile?.points || 0);
-            document.getElementById('pointsDisplay').innerText = displayPoints;
-            document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
-            generateMemberCode();
-            if (isReload) showToast('✅ 資料已更新');
-
-       // --- 2. 非會員（準備註冊）的情況 ---
-        } else {
-            document.getElementById('memberUI').style.display = 'none';
-            document.getElementById('regUI').style.display = 'block';
-            
-            // 檢查有無推薦人參數
-            if (referrerParam && referrerParam !== 'undefined' && referrerParam !== '') {
-                
-                // 如果連結已過期 (GAS 回傳 expiredLink: true)
-                if (userData && userData.expiredLink === true) {
-                    document.getElementById('regGiftArea').style.display = 'none';
-                    showToast('⚠️ 此推薦連結已超過 14 天效期');
-                } else {
-                    // 連結有效，顯示招待區
-                    document.getElementById('regGiftArea').style.display = 'block';
-                    
-                    // 取得推薦人姓名
-                    let referrerName = (userData && userData.myReferrer && userData.myReferrer !== "無") ? userData.myReferrer : "神祕好友";
-                    
-                    document.getElementById('giftTitle').innerText = `🎁 你的好友 ${referrerName} 送你的專屬好禮`;
-                    document.getElementById('giftTitle').style.textAlign = "center";
-                    document.getElementById('giftTip').style.textAlign = "center";
-                    
-                    // 產生 QR Code (請確保 generateRegCode 裡面也有處理 split('|'))
-                    generateRegCode(); 
-                }
-            } else {
-                // 完全沒有推薦人參數的情況
-                document.getElementById('regGiftArea').style.display = 'none';
+    if (!r.isMember) {
+      if (urlRefId && urlRefId !== "undefined" && urlRefId !== "") {
+        var refParts = urlRefId.split('|');
+        var actualRefId = refParts[0];
+        var linkTimestamp = refParts[1];
+        if (linkTimestamp) {
+          var now = new Date();
+          var linkDate = new Date(Number(linkTimestamp));
+          var diffDays = (now - linkDate) / (1000 * 60 * 60 * 24);
+          if (diffDays <= 14) {
+            recordReferralClick(targetId, actualRefId, linkTimestamp, from);
+            var mem = memSheet.getDataRange().getValues();
+            for (var m = 1; m < mem.length; m++) {
+              if (String(mem[m][MEMBER_COL["會員ID"]]).trim() === String(actualRefId).trim()) {
+                r.myReferrer = mem[m][MEMBER_COL["姓名"]] || "神秘好友";
+                break;
+              }
             }
+          } else {
+            r.expiredLink = true;
+            r.myReferrer = "無(連結已過期)";
+          }
         }
-    } catch(e) { 
-        console.error("Fetch Error:", e);
-        showToast('資料載入失敗，請稍後再試');
-    } finally {
-        // 無論成功失敗都關閉載入中動畫
-        document.getElementById('loading').style.display = 'none';
-    }
-}
-
-async function doRegister() {
-    let name = document.getElementById('regName').value.trim();
-    let phone = document.getElementById('regPhone').value.trim();
-    let birthday = document.getElementById('regBirthday').value;
-    let agreeRights = document.getElementById('agreeRights').checked;
-    let agreeLegal = document.getElementById('agreeLegal').checked;
-
-    const phonePattern = /^09\d{2}-\d{3}-\d{3}$/;
-    if (!phonePattern.test(phone)) {
-        return showToast('請輸入正確格式：09xx-xxx-xxx');
+      }
+      return r;
     }
 
-    if (!name) return showToast('請填寫姓名');
-    if (!birthday) return showToast('請選擇生日');
-    if (!agreeRights) return showToast('請先閱讀並同意【會員權益】');
-    if (!agreeLegal) return showToast('請先閱讀並同意【法務免責及管控聲明】');
-    
-    document.getElementById('loading').style.display = 'flex';
-    document.getElementById('regUI').style.display = 'none';
+    if (firestoreData) {
+      var dbRefId = getStringValue(firestoreData.referrerId);
+      if (dbRefId && dbRefId !== "undefined" && dbRefId !== "") {
+        var refInfo = getFirestoreDocument("members", dbRefId);
+        if (refInfo) {
+          r.myReferrer = getStringValue(refInfo.name) || "神秘好友";
+        }
+      }
+    }
     
     try {
-        let res = await fetch(`${GAS_URL}?action=register&userId=${userId}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&birthday=${birthday}&referrerId=${encodeURIComponent(referrerParam)}&from=${currentFrom}`);
-        let result = await res.json();
-        
-        if (result.success) {
-            document.getElementById('loading').style.display = 'none';
-            openModal(`<div class="welcome-card"><h2>🎉 註冊成功！</h2><p>歡迎加入老娘的一點心意🍲🍰<br><br>這是老娘留給你的偏心。<br>日子不一定天天完美<br>但一定要有一點甜 💕</p><div style="margin-top: 20px;">3秒後自動進入會員頁面...</div></div>`);
-            setTimeout(() => { closeModal(); location.reload(); }, 3000);
-        } else {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('regUI').style.display = 'block';
-            showToast(result.message || '註冊失敗');
-        }
-    } catch(e) { 
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('regUI').style.display = 'block';
-        showToast('網路連線錯誤，請稍後再試'); 
-    }
-}
-
-function openEvents(brand) { let events = brand === 'so' ? (userData.soEvents || []) : (userData.ompEvents || []); openModal(`<h3 style="color:var(--primary); text-align:center;">🔥 活動資訊</h3>` + (events.length ? events.map(e => `<div style="padding:10px 0;">✨ ${e}</div>`).join('') : '<p>目前暫無活動</p>')); }
-
-function openReferral() {
-    let html = `<h3 style="color:var(--primary); text-align:center;">👥 推薦名單</h3>
-    <div style="margin-bottom:15px;"><b>推薦您的好友：</b> ${userData?.myReferrer || '無'}</div>
-    <div style="margin-top:15px;"><b>您推薦的好友：</b></div>
-    <table style="width:100%; border-collapse:collapse; margin-top:10px;">
-        <tbody>`;
-    
-    if (userData?.myReferrals?.length) {
-        html += userData.myReferrals.map((r,i)=>`
-            <tr>
-                <td style="width:45%; padding:6px 0; text-align:left; vertical-align:top;">${i+1}. ${r.name}</td>
-                <td style="width:55%; padding:6px 0; text-align:left; vertical-align:top;">加入日期 ${r.date}</td>
-             </tr>
-        `).join('');
-    } else {
-        html += `<tr><td colspan="2" style="padding:10px 0; color:#999;">尚無好友加入<\/td><\/tr>`;
-    }
-    
-    html += `</tbody><\/table>`;
-    openModal(html);
-}
-
-function openPointHistory() {
-    let html = `<h3 style="color:var(--primary); text-align:center;">📜 點數明細</h3>
-    <table class="history-table" style="width:100%; border-collapse:collapse; text-align:center; font-size:14px;">
-        <thead>
-            <tr style="color:#666; font-weight:bold;">
-                <th style="width:16%; padding:6px 2px;">日期</th>
-                <th style="padding:6px 2px;">本　人<br>獲取點</th>
-                <th style="padding:6px 2px;">推　薦<br>回饋點</th>
-                <th style="padding:6px 2px;">當日<br>折抵</th>
-                <th style="padding:6px 2px;">過期<br>點數</th>
-             <\/tr>
-        </thead>
-        <tbody>`;
-    let totalExpiredSoon = 0;
-    if (userData && userData.history && userData.history.length > 0) {
-        html += userData.history.map(h => {
-            const shortDate = (h.date || "").split(" ")[0];
-            const expiredValue = h.expired != null && h.expired !== 'undefined' ? h.expired : '';
-            const expiredNum = Number(h.expired) || 0;
-            totalExpiredSoon += expiredNum;
-            return `
-            <tr style="border-top:1px solid #eee;">
-                <td style="padding:8px 2px;">${shortDate}<\/td>
-                <td style="padding:8px 2px;">${h.gain || ''}<\/td>
-                <td style="padding:8px 2px;">${h.share || ''}<\/td>
-                <td style="padding:8px 2px; color:#d00;">${h.spend || ''}<\/td>
-                <td style="padding:8px 2px; color:#d00;">${expiredValue}<\/td>
-              <\/tr>`;
-        }).join('');
-    } else { html += `<tr><td colspan="5" style="padding:25px; color:#999;">目前尚無紀錄<\/td><\/tr>`; }
-    html += `</tbody><\/table><div style="margin-top:20px; padding:15px; background:#fff5f5; border-radius:12px; border:1px dashed #ab545a; text-align:center;">
-        <div style="font-size:14px; color:#666;">⏳ 即將過期點數 (近期)</div>
-        <div style="font-size:24px; font-weight:900; color:#d00; margin-top:5px;">${totalExpiredSoon} <span style="font-size:14px;">點</span></div>
-        <div style="font-size:11px; color:#999; margin-top:5px;">* 點數寶貴，記得趕快來店內折抵唷！ *</div>
-    </div>`;
-    openModal(html);
-}
-function openProfile() { let p = userData?.profile; if(!p) return; openModal(`<h3 style="color:var(--primary); text-align:center;">👤 個人資料</h3><p>姓名：${p.name}</p><p>電話：${p.phone}</p><p>生日：${p.birthday}</p>`); }
-
-function autoCopyShare() { 
-    // 1. 取得當前時間戳記 (例如: 1711939200000)
-    const now = Date.now();
-    
-    // 2. 組合推薦資訊：UserID + 直槓 + 時間戳記
-    // 格式會變成：U123456...|1711939200000
-    const rawReferrer = `${userId}|${now}`;
-    
-    // 3. 進行編碼，確保 | 符號在網址傳遞時不會出錯
-    const encodedReferrer = encodeURIComponent(rawReferrer);
-    
-    const shareUrl = `https://liff.line.me/${LIFF_ID}?from=${currentFrom}&referrer=${encodedReferrer}`;
-    const shareText = `✨ 發現高雄隱藏版美味 ✨\n立即加入領取新客禮：\n${shareUrl}`;
-    
-    // 複製到剪貼簿
-    navigator.clipboard.writeText(shareText)
-        .then(() => {
-            openModal(`
-                <div class="share-modal-content">
-                    <div class="share-title">✅ 推薦連結已複製！</div>
-                    <div class="share-body">
-                        連結有效期為 14 天<br>
-                        趕快發給好友領取新客招待禮吧 💕
-                    </div>
-                </div>
-            `);
-        })
-        .catch(() => {
-            // 如果瀏覽器不支援 clipboard API 的備案
-            const textArea = document.createElement("textarea");
-            textArea.value = shareText;
-            document.body.appendChild(textArea);
-            textArea.select();
-            try {
-                document.execCommand('copy');
-                showToast('✅ 推薦碼已複製');
-            } catch (err) {
-                showToast('複製失敗，請手動截圖分享');
+      var logSheet = main.getSheetByName("流水帳紀錄");
+      if (logSheet) {
+        var log = logSheet.getDataRange().getValues();
+        for (var j = log.length - 1; j >= 1 && r.history.length < 15; j--) {
+          if (String(log[j][LOG_COL["會員ID"]]).trim() === targetId) {
+            var selfPoint = Number(log[j][LOG_COL["獲得點數"]]) || 0;
+            var sharePoint = Number(log[j][LOG_COL["分享回饋點數"]]) || 0;
+            var redeemPoint = Number(log[j][LOG_COL["使用點數折抵"]]) || 0;
+            var hasAnyData = (selfPoint > 0) || (sharePoint > 0) || (redeemPoint > 0) || (selfPoint < 0);
+            if (hasAnyData) {
+              r.history.push({
+                date: Utilities.formatDate(new Date(log[j][LOG_COL["交易日期"]]), "GMT+8", "yyyy/MM/dd"),
+                gain: selfPoint > 0 ? selfPoint : "",
+                share: sharePoint > 0 ? sharePoint : "",
+                spend: redeemPoint > 0 ? redeemPoint : "",
+                expired: selfPoint < 0 ? Math.abs(selfPoint) : ""
+              });
             }
-            document.body.removeChild(textArea);
-        }); 
+          }
+        }
+      }
+    } catch(e) {}
+    
+    return r;
+  } catch (err) {
+    return { isMember: false, error: err.toString() };
+  }
 }
-
-function openModal(html) { document.getElementById('modalBody').innerHTML = html; document.getElementById('modal').style.display = 'flex'; }
-function closeModal() { 
-    document.getElementById('modal').style.display = 'none'; 
-    if (pendingCheckboxId) { 
-        document.getElementById(pendingCheckboxId).checked = true; 
-        pendingCheckboxId = null; 
+// 生日格式化函數：修正時區問題
+function formatBirthday(birthdayStr) {
+  if (!birthdayStr) return "";
+  
+  // 如果已經是 YYYY-MM-DD 格式，直接回傳
+  if (/^\d{4}-\d{2}-\d{2}$/.test(birthdayStr)) {
+    return birthdayStr;
+  }
+  
+  try {
+    // 解析 ISO 字串
+    var date = new Date(birthdayStr);
+    if (isNaN(date.getTime())) return birthdayStr;
+    
+    // 加上 8 小時（轉回台灣時區）
+    var taiwanDate = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+    
+    var year = taiwanDate.getFullYear();
+    var month = String(taiwanDate.getMonth() + 1).padStart(2, '0');
+    var day = String(taiwanDate.getDate()).padStart(2, '0');
+    
+    return year + "-" + month + "-" + day;
+  } catch(e) {
+    return birthdayStr;
+  }
+}
+// ==================== 註冊函數 (徹底修正版) ====================
+function register(d) {
+  try {
+    console.log("=== register 開始 ===");
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var s = main.getSheetByName("會員中心");
+    var data = s.getDataRange().getValues();
+    var tid = String(d.userId).trim();
+    
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][MEMBER_COL["會員ID"]]).trim() === tid) return { success: false, message: "此帳號已註冊" };
+      if (String(data[i][MEMBER_COL["電話"]]).trim() === String(d.phone).trim()) return { success: false, message: "此手機號碼已被註冊" };
     }
-    // ✅ 關閉 modal 時停止輪詢
-    stopCouponCheck();
+    
+    var finalReferrerId = "";
+    if (d.referrerId && d.referrerId !== "undefined" && d.referrerId !== "") {
+      finalReferrerId = String(d.referrerId).trim();
+    } else {
+      var referralCheck = checkReferralRecord(tid);
+      if (referralCheck.valid) finalReferrerId = referralCheck.referrerId;
+    }
+    
+    var hasReferralRecord = checkReferralTableExists(tid);
+    var shouldCreateCoupon = !hasReferralRecord;
+    
+    if (hasReferralRecord && !finalReferrerId) {
+      var referralRecord = getReferralRecord(tid);
+      if (referralRecord) finalReferrerId = referralRecord.referrerId;
+    }
+    
+    var b = d.from === "so" ? "一點甜" : "老娘鍋";
+    var now = new Date();
+    
+    // 1. Sheets 寫入 (修正 userId 為 tid)
+    s.appendRow([
+      now, tid, d.name || "", d.phone || "", d.birthday || "", 
+      finalReferrerId, 0, 0, "活躍", "", "一般會員", 0, b
+    ]);
+
+    if (typeof backup === 'function') backup(d, b);
+    
+    // ---------------------------------------------------------
+    // 2. 關鍵：回到你原本「絕對會動」的 members 路徑
+    // ---------------------------------------------------------
+    var memberData = {
+      "註冊時間": now,
+      "會員ID": tid,
+      "姓名": d.name || "",
+      "電話": d.phone || "",
+      "生日": d.birthday || "",
+      "推薦人ID": finalReferrerId,
+      "現有累積點數": 0,
+      "剩餘點數": 0,
+      "狀態": "活躍",
+      "備註": "",
+      "等級": "一般會員",
+      "消費總金額": 0,
+      "來源品牌": b
+    };
+    
+    // 保持使用 "members" 集合，這保證了寫入權限沒問題
+    setFirestoreDocument("members", tid, memberData);
+    
+    // ---------------------------------------------------------
+    // 3. 寫入流水帳 (同樣使用原本會動的 transactions)
+    // ---------------------------------------------------------
+    var regTransactionId = "REG" + now.getTime(); 
+    var logData = {
+      "交易ID": regTransactionId,
+      "交易日期": now,
+      "會員ID": tid,
+      "品牌": b,
+      "分店": "線上註冊",
+      "分類": "新會員註冊",
+      "消費金額": 0,
+      "實際付款": 0,
+      "獲得點數": 0,
+      "生效日": now,
+      "過期狀態": "有效",
+      "經手店員": "System",
+      "備註": "註冊成功"
+    };
+    setFirestoreDocument("transactions", regTransactionId, logData);
+    
+    if (hasReferralRecord) {
+      updateReferralTableStatus(tid, b);
+    }
+    
+    if (shouldCreateCoupon) {
+      var couponResult = createCouponForNewUser(tid, finalReferrerId, d.name);
+    }
+    
+    // 4. 回傳成功訊號
+    console.log("=== 註冊成功，已寫入 Firestore (members/transactions) ===");
+    return { success: true, message: "註冊成功" };
+
+  } catch (err) {
+    console.error("❌ 報錯:", err.toString());
+    return { success: false, message: err.toString() };
+  }
 }
 
-document.getElementById('regPhone').addEventListener('input', function(e) { let v = e.target.value.replace(/\D/g, '').slice(0, 10); if (v.length > 7) v = v.slice(0,4)+'-'+v.slice(4,7)+'-'+v.slice(7); else if (v.length > 4) v = v.slice(0,4)+'-'+v.slice(4); e.target.value = v; });
+function updateReferralTableStatus(userId, branch) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var referralTable = main.getSheetByName("招待紀錄表");
+    if (!referralTable) {
+      console.log("⚠️ 招待紀錄表不存在");
+      return;
+    }
+    
+    var data = referralTable.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(userId).trim()) {
+        var brandName = (branch === "omp") ? "老娘鍋" : "一點甜";
+        referralTable.getRange(i + 1, REFERRAL_COL["狀態"] + 1).setValue("✅已兌換招待禮（" + brandName + "）");
+        referralTable.getRange(i + 1, REFERRAL_COL["使用時間"] + 1).setValue(new Date());
+        console.log("✅ 招待紀錄表狀態已更新:", userId, "→", "✅已兌換招待禮（" + brandName + "）");
+        break;
+      }
+    }
+  } catch(e) {
+    console.error("updateReferralTableStatus error:", e.toString());
+  }
+}
 
-initLiff();
-</script>
-</body>
-</html>
+// ==================== 優惠券相關函數 ====================
+function createCouponForNewUser(userId, referrerId, userName) {
+  try {
+    var now = new Date();
+    var expiresAt = new Date(now);
+    expiresAt.setDate(expiresAt.getDate() + 30);
+    var shopCode = "omp";
+    var keys = getShopKeys(shopCode);
+    if (keys.length === 0) return { success: false, message: "無法取得金鑰" };
+    var randomKey = keys[Math.floor(Math.random() * keys.length)];
+    var qrContent = "GIFT_BY_" + shopCode + "_" + randomKey + "_" + userId;
+    var qrCodeUrl = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=" + encodeURIComponent(qrContent);
+    var couponData = {
+      userId: userId, referrerId: referrerId || "", userName: userName || "", qrContent: qrContent,
+      status: "未使用", createdAt: now.toISOString(), expiresAt: expiresAt.toISOString(),
+      redeemedAt: "", redeemedBranch: "", redeemedBy: ""
+    };
+    var saveResult = setFirestoreDocument("coupons", userId, couponData);
+    if (saveResult) return { success: true, couponId: userId, qrCodeUrl: qrCodeUrl, qrContent: qrContent };
+    return { success: false, message: "Firestore 儲存失敗" };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// ==================== 快速刷新 ====================
+function quickRefresh(userId, from) {
+  try {
+    var shopCode = (from === "so") ? "swo" : "omp";
+    var points = 0;
+    var firestoreData = getFirestoreDocument("members", String(userId).trim());
+    if (firestoreData) {
+      points = Number(firestoreData.availablePoints?.integerValue) || 0;
+    } else {
+      var main = SpreadsheetApp.openById(SS_MAIN);
+      var memSheet = main.getSheetByName("會員中心");
+      var memData = memSheet.getDataRange().getValues();
+      for (var i = 1; i < memData.length; i++) {
+        if (String(memData[i][MEMBER_COL["會員ID"]]).trim() === String(userId).trim()) {
+          points = Number(memData[i][MEMBER_COL["剩餘點數"]]) || 0;
+          break;
+        }
+      }
+    }
+    var randomKey = getRandomKey(shopCode);
+    return { success: true, points: points, shopKey: randomKey, shopCode: shopCode };
+  } catch(e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// ==================== 備份函數 ====================
+function backup(d, b) {
+  try {
+    var bak = SpreadsheetApp.openById(SS_BACKUP);
+    var sheet = bak.getSheetByName("會員中心") || bak.insertSheet("會員中心");
+    sheet.appendRow([
+      new Date(), 
+      d.userId, 
+      d.name, 
+      d.phone, 
+      d.birthday, 
+      d.referrerId || "", 
+      0, 
+      0, 
+      "活躍", 
+      "", 
+      "一般會員", 
+      0, 
+      b
+    ]);
+  } catch (e) {}
+}
+
+// ==================== JSON 輸出輔助 ====================
+function json(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+    console.log("收到的參數:", JSON.stringify(e.parameter));
+  try {
+    var action = e.parameter.action;
+    var from = e.parameter.from || "omp";
+    var ref = e.parameter.referrerId || "";
+    var br = (from === "so") ? "一點甜" : "老娘鍋";
+    var rawId = e.parameter.userId || "";
+    
+    // 不要自作聰明解析 userId，直接使用原始值
+    var uid = rawId;  // ← 直接使用，不要 split
+    
+    if (action === "checkID" && uid) return json(checkMember(uid, br, from, ref));
+    if (action === "quickRefresh") return json(quickRefresh(e.parameter.userId, e.parameter.from || "omp"));
+    if (action === "register") {
+      return json(register({ 
+        userId: uid,  // ← 使用正確的 uid
+        name: e.parameter.name, 
+        phone: e.parameter.phone, 
+        birthday: e.parameter.birthday, 
+        referrerId: ref, 
+        from: from 
+      }));
+    }
+    return json({ success: false, error: "無效操作" });
+  } catch (err) {
+    return json({ success: false, error: err.toString() });
+  }
+}
+function doPost(e) {
+  try {
+    var d = JSON.parse(e.postData.contents);
+    if (d.action === "verifyScan") return json(verifyScan(d.customerId, d.staffLineId));
+    return json({ success: false, message: "未知操作" });
+  } catch (err) {
+    return json({ success: false, message: err.toString() });
+  }
+}
+
+// ==================== 掃描驗證 ====================
+function verifyScan(customerId, staffLineId) {
+  try {
+    var isGift = false;
+    var cleanId = customerId;
+    if (customerId.indexOf("data=") > -1) {
+      cleanId = customerId.split("data=")[1].split("&")[0];
+      cleanId = decodeURIComponent(cleanId);
+    }
+    if (cleanId.startsWith("GIFT_BY_")) {
+      isGift = true;
+      cleanId = cleanId.substring(8);
+    }
+    var parts = cleanId.split("_");
+    if (parts.length !== 3) return { success: false, error: "格式錯誤" };
+    if (!validateKey(parts[0], parts[1])) return { success: false, error: "金鑰無效" };
+    return { success: true, isGift: isGift, shopCode: parts[0], userId: parts[2] };
+  } catch (e) {
+    return { success: false, error: e.toString() };
+  }
+}
+
+function writeToReferralTable(newUserId, refUserId, shopCode) {
+  try {
+    var main = SpreadsheetApp.openById(SS_MAIN);
+    var sheet = main.getSheetByName("招待紀錄表");
+    if (!sheet) sheet = main.insertSheet("招待紀錄表");
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][REFERRAL_COL["新客UserID"]]).trim() === String(newUserId).trim()) return { success: false, message: "此新客已領過招待禮" };
+    }
+    var now = new Date();
+    var brand = (shopCode === "swo") ? "一點甜" : "老娘鍋";
+    sheet.appendRow([now, newUserId, refUserId, brand, "已領取/待註冊", now, ""]);
+    return { success: true };
+  } catch(e) {
+    return { success: false, message: e.toString() };
+  }
+}
+/// ==================== Firestore 讀寫核心函數（修正版 - 使用 FirestoreInit 的變數） ====================
+// ==================== Firestore REST API (使用服務帳號直接呼叫) ====================
+
+function getFirestoreToken() {
+  try {
+    var header = {
+      "alg": "RS256",
+      "typ": "JWT"
+    };
+    
+    var now = Math.floor(Date.now() / 1000);
+    var claim = {
+      "iss": FIRESTORE_CLIENT_EMAIL,
+      "scope": "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/datastore",
+      "aud": "https://oauth2.googleapis.com/token",
+      "exp": now + 3600,
+      "iat": now
+    };
+    
+    function base64UrlEncode(str) {
+      return Utilities.base64EncodeWebSafe(JSON.stringify(str));
+    }
+    
+    var signatureInput = base64UrlEncode(header) + "." + base64UrlEncode(claim);
+    
+    // 處理私鑰格式
+    var privateKey = FIRESTORE_PRIVATE_KEY;
+    if (privateKey.includes("\\n")) {
+      privateKey = privateKey.replace(/\\n/g, '\n');
+    }
+    
+    var signature = Utilities.computeRsaSha256Signature(signatureInput, privateKey);
+    var signedJwt = signatureInput + "." + Utilities.base64EncodeWebSafe(signature);
+    
+    var payload = {
+      "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      "assertion": signedJwt
+    };
+    
+    var options = {
+      "method": "POST",
+      "payload": payload,
+      "muteHttpExceptions": true
+    };
+    
+    var response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", options);
+    var result = JSON.parse(response.getContentText());
+    
+    if (result.access_token) {
+      console.log("✅ 取得 Token 成功");
+      return result.access_token;
+    } else {
+      console.error("❌ 取得 Token 失敗:", result);
+      return null;
+    }
+  } catch(e) {
+    console.error("❌ getFirestoreToken 錯誤:", e.toString());
+    return null;
+  }
+}
+
+function setFirestoreDocument(collection, docId, data) {
+  try {
+    var token = getFirestoreToken();
+    if (!token) return false;
+    
+    // 確保 collection 和 docId 是安全的
+    var safeCollection = encodeURIComponent(collection);
+    var safeDocId = encodeURIComponent(String(docId));
+    var url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/${safeCollection}/${safeDocId}`;
+    
+    // 轉換資料為 Firestore 格式
+    var fields = {};
+    for (var key in data) {
+      if (!key || key === "") continue;
+      var val = data[key];
+      if (val === undefined || val === null) continue;
+      
+      if (typeof val === 'string') {
+        if (val === "") continue;
+        fields[key] = { "stringValue": val };
+      } else if (typeof val === 'number') {
+        fields[key] = { "doubleValue": val };
+      } else if (val instanceof Date) {
+        fields[key] = { "timestampValue": val.toISOString() };
+      } else if (typeof val === 'boolean') {
+        fields[key] = { "booleanValue": val };
+      } else {
+        fields[key] = { "stringValue": String(val) };
+      }
+    }
+    
+    var options = {
+      "method": "PATCH",
+      "contentType": "application/json",
+      "headers": { "Authorization": "Bearer " + token },
+      "payload": JSON.stringify({ "fields": fields }),
+      "muteHttpExceptions": true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+    
+    if (code === 200) {
+      console.log("✅ Firestore 寫入成功:", collection, docId);
+      return true;
+    } else {
+      console.error("❌ HTTP 錯誤:", code, response.getContentText());
+      return false;
+    }
+  } catch(e) {
+    console.error("❌ setFirestoreDocument 錯誤:", e.toString());
+    return false;
+  }
+}
+
+function getFirestoreDocument(collection, docId) {
+  try {
+    var token = getFirestoreToken();
+    if (!token) return null;
+    
+    var safeCollection = encodeURIComponent(collection);
+    var safeDocId = encodeURIComponent(String(docId));
+    var url = `https://firestore.googleapis.com/v1/projects/${FIRESTORE_PROJECT_ID}/databases/(default)/documents/${safeCollection}/${safeDocId}`;
+    
+    var options = {
+      "method": "GET",
+      "headers": { "Authorization": "Bearer " + token },
+      "muteHttpExceptions": true
+    };
+    
+    var response = UrlFetchApp.fetch(url, options);
+    
+    if (response.getResponseCode() === 200) {
+      var result = JSON.parse(response.getContentText());
+      var fields = result.fields || {};
+      var output = {};
+      for (var key in fields) {
+        var val = fields[key];
+        if (val.stringValue !== undefined) output[key] = val.stringValue;
+        else if (val.doubleValue !== undefined) output[key] = val.doubleValue;
+        else if (val.timestampValue !== undefined) output[key] = val.timestampValue;
+        else if (val.booleanValue !== undefined) output[key] = val.booleanValue;
+        else output[key] = val;
+      }
+      return output;
+    }
+    return null;
+  } catch(e) {
+    console.error("getFirestoreDocument 錯誤:", e.toString());
+    return null;
+  }
+}
+function testGetShopInfo() {
+  var shopInfo = getShopInfo();
+  console.log("shopInfo 長度:", shopInfo.length);
+  console.log("完整資料:", JSON.stringify(shopInfo, null, 2));
+  
+  // 如果有資料，顯示第一間店的結構
+  if (shopInfo.length > 0) {
+    console.log("第一間店:", shopInfo[0]);
+    console.log("第一間店的 details:", shopInfo[0].details);
+  }
+}
+function diagnoseShopInfo() {
+  try {
+    var set = SpreadsheetApp.openById(SS_SETTING);
+    console.log("✅ 成功開啟試算表:", SS_SETTING);
+    
+    var shopSheet = set.getSheetByName("店面設定");
+    if (!shopSheet) {
+      console.log("❌ 找不到『店面設定』分頁");
+      return;
+    }
+    console.log("✅ 找到『店面設定』分頁");
+    
+    var shopData = shopSheet.getDataRange().getValues();
+    console.log("總列數:", shopData.length);
+    console.log("總欄數:", shopData[0] ? shopData[0].length : 0);
+    
+    // 印出前5列前5欄的內容
+    console.log("=== 資料預覽 ===");
+    for (var row = 0; row < Math.min(5, shopData.length); row++) {
+      var rowStr = "";
+      for (var col = 0; col < Math.min(5, shopData[0].length); col++) {
+        rowStr += "[" + col + "]" + (shopData[row][col] || "(空)") + " | ";
+      }
+      console.log("第" + (row+1) + "列:", rowStr);
+    }
+    
+    // 檢查分店起始列和欄的設定
+    console.log("=== 設定值 ===");
+    console.log("分店起始列:", SHOP_SETTING["分店起始列"]);  // 應該是 1
+    console.log("分店起始欄:", SHOP_SETTING["分店起始欄"]);  // 應該是 2 (B欄)
+    console.log("標題起始列:", SHOP_SETTING["標題起始列"]);  // 應該是 2
+    console.log("標題欄:", SHOP_SETTING["標題欄"]);          // 應該是 0 (A欄)
+    
+  } catch(e) {
+    console.error("診斷錯誤:", e.toString());
+  }
+}
