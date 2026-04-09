@@ -595,7 +595,7 @@ async function fetchData(isReload = false) {
             document.getElementById('regUI').style.display = 'none';
             const displayPoints = userData.points !== undefined ? userData.points : (userData.profile?.points || 0);
             document.getElementById('pointsDisplay').innerText = displayPoints;
-            document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '進了老娘的門，就是家裡人！';
+            document.getElementById('welcomeQuote').innerText = userData.welcomeQuote || '歡迎回來！';
             generateMemberCode();
             if (isReload) showToast('✅ 資料已更新');
 
