@@ -314,97 +314,66 @@ async function onScanSuccess(scannedText) {
     
     try {
         showLoading("連線中...");
-    // ========== 優惠券兌換 ==========
-       if (parsed.type === "coupon") {
-    const realStaffName = staff.name;
-    const realStaffBranch = staff.branch;
-    const clientIp = await getUserIP();  // ✅ 取得 IP
-    
-    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
-    
-    try {
-        const res = await fetch(url);
-        const result = await res.json();
-        hideLoading();
         
-        if (result.success) {
-            showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
-        } else {
-            showModal(`⚠️ ${result.message || "兌換失敗"}`);
+        // ========== 優惠券兌換 ==========
+        if (parsed.type === "coupon") {
+            const realStaffName = staff.name;
+            const realStaffBranch = staff.branch;
+            const clientIp = await getUserIP();
+            
+            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
+            
+            try {
+                const res = await fetch(url);
+                const result = await res.json();
+                hideLoading();
+                
+                if (result.success) {
+                    showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
+                } else {
+                    showModal(`⚠️ ${result.message || "兌換失敗"}`);
+                }
+            } catch (err) {
+                hideLoading();
+                showModal("連線失敗：" + err.message);
+            }
+            return;
         }
-    } catch (err) {
-        hideLoading();
-        showModal("連線失敗：" + err.message);
-    }
-    return;
-}
+        
+        // ========== 招待 QR（新客）==========
         if (parsed.type === "invite") {
-    const newUserId = parsed.newUserId;
-    const shopCode = parsed.shopCode;
-    const referrerId = parsed.referrerId;
-    const shopKey = parsed.shopKey;
-    
-    if (!newUserId) {
-        hideLoading();
-        showModal("⚠️ 招待碼格式錯誤，缺少新客編號");
-        return;
-    }
-    
-    showLoading("處理招待中...");
-    
-    const realStaffName = staff.name;
-    const realStaffBranch = staff.branch;
-    const clientIp = await getUserIP();  // ✅ 取得 IP
-    
-    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
-    
-    try {
-        const res = await fetch(url);
-        const result = await res.json();
-        hideLoading();
-        
-        if (result.success) {
-            showModal(`🎁 ${result.message || "招待成功！請給新客招待禮物"}`);
-        } else {
-            showModal(`⚠️ 招待失敗：${result.message || "未知錯誤"}`);
+            const newUserId = parsed.newUserId;
+            
+            if (!newUserId) {
+                hideLoading();
+                showModal("⚠️ 招待碼格式錯誤，缺少新客編號");
+                return;
+            }
+            
+            const realStaffName = staff.name;
+            const realStaffBranch = staff.branch;
+            const clientIp = await getUserIP();
+            
+            const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
+            
+            try {
+                const res = await fetch(url);
+                const result = await res.json();
+                hideLoading();
+                
+                if (result.success) {
+                    showModal(`🎁 ${result.message || "招待成功！請給新客招待禮物"}`);
+                } else {
+                    showModal(`⚠️ 招待失敗：${result.message || "未知錯誤"}`);
+                }
+            } catch (err) {
+                hideLoading();
+                showModal("連線失敗：" + err.message);
+            }
+            return;
         }
-    } catch (err) {
-        hideLoading();
-        showModal("連線失敗：" + err.message);
-    }
-    return;
-}
-    
-    showLoading("處理招待中...");
-    
-    // ✅ 呼叫後端 verifyScan
-  // 🔥 直接用頁面真正的店員資料（100% 正確）
-const realStaffName = staff.name;         // 頁面有顯示的名字
-const realStaffBranch = staff.branch;     // 頁面有顯示的分店
-
-console.log("✅ 真正的店員名：", realStaffName);
-console.log("✅ 真正的分店：", realStaffBranch);
-
-const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
-    
-    try {
-        const res = await fetch(url);
-        const result = await res.json();
-        hideLoading();
         
-        if (result.success) {
-            // ✅ 顯示招待成功的文字訊息（不顯示 ID）
-            showModal(`🎁 ${result.message || "招待成功！請給新客招待禮物"}`);
-        } else {
-            showModal(`⚠️ 招待失敗：${result.message || "未知錯誤"}`);
-        }
-    } catch (err) {
-        hideLoading();
-        showModal("連線失敗：" + err.message);
-    }
-    return;
-}
-        
+        // ========== 會員 QR（已註冊會員）==========
         if (parsed.type === "member") {
             if (!parsed.userId) {
                 hideLoading();
@@ -441,6 +410,7 @@ const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scanne
             return;
         }
         
+        // 都不是
         hideLoading();
         showModal("⚠️ 無法識別的 QR Code 類型");
         
