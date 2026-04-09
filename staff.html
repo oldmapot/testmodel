@@ -190,7 +190,17 @@ async function logout() {
     isLoggedIn = false;
     window.location.href = 'staff_login.html';
 }
-
+// 取得使用者真實 IP（透過第三方服務）
+async function getUserIP() {
+  try {
+    const response = await fetch('https://api.ipify.org?format=json');
+    const data = await response.json();
+    return data.ip;
+  } catch (err) {
+    console.warn("取得 IP 失敗，使用空值", err);
+    return "";
+  }
+}
 function showLoading(text) { const el = document.getElementById('loadingText'); if (text) el.innerText = text; document.getElementById('loadingOverlay').style.display = 'flex'; }
 function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 function showModal(html) { document.getElementById('modalText').innerHTML = html; document.getElementById('customModal').style.display = 'flex'; }
@@ -308,15 +318,15 @@ async function onScanSuccess(scannedText) {
        if (parsed.type === "coupon") {
     const realStaffName = staff.name;
     const realStaffBranch = staff.branch;
+    const clientIp = await getUserIP();  // ✅ 取得 IP
     
-    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}`;
+    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
     
     try {
         const res = await fetch(url);
         const result = await res.json();
         hideLoading();
         
-             
         if (result.success) {
             showModal(`🎁 ${result.message || "此為新客招待，請處理"}`);
         } else {
@@ -339,6 +349,31 @@ async function onScanSuccess(scannedText) {
         showModal("⚠️ 招待碼格式錯誤，缺少新客編號");
         return;
     }
+    
+    showLoading("處理招待中...");
+    
+    const realStaffName = staff.name;
+    const realStaffBranch = staff.branch;
+    const clientIp = await getUserIP();  // ✅ 取得 IP
+    
+    const url = `${GAS_URL}?action=verifyScan&customerId=${encodeURIComponent(scannedText)}&staffLineId=&staffName=${encodeURIComponent(realStaffName)}&staffBranch=${encodeURIComponent(realStaffBranch)}&clientIp=${encodeURIComponent(clientIp)}`;
+    
+    try {
+        const res = await fetch(url);
+        const result = await res.json();
+        hideLoading();
+        
+        if (result.success) {
+            showModal(`🎁 ${result.message || "招待成功！請給新客招待禮物"}`);
+        } else {
+            showModal(`⚠️ 招待失敗：${result.message || "未知錯誤"}`);
+        }
+    } catch (err) {
+        hideLoading();
+        showModal("連線失敗：" + err.message);
+    }
+    return;
+}
     
     showLoading("處理招待中...");
     
