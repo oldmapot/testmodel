@@ -466,55 +466,34 @@ function stopCouponCheck() {
 }
 
 // 檢查優惠券狀態
-// 檢查優惠券狀態
 async function checkCouponStatus() {
-    if (!userId) return false;
+    if (!userId) return;
     
     try {
         const url = `${GAS_URL}?action=checkCouponStatus&userId=${userId}&t=${Date.now()}`;
-        const res = await fetch(url, {
-            cache: 'no-cache',
-            headers: { 'Cache-Control': 'no-cache' }
-        });
+        const res = await fetch(url);
         const result = await res.json();
         
-        // 🔴 只改這裡：Firestore 回傳的 status 可能是 { stringValue: "已使用" } 或直接 "已使用"
-        // 原本只有：result.status === "已使用"
-        // 現在加入兩種格式的判斷
-        const statusValue = result.status?.stringValue || result.status;
-        
         // 如果優惠券已被使用
-        if (statusValue === "已使用") {
-            // 停止輪詢
-            if (typeof stopCouponCheck === 'function') {
-                stopCouponCheck();
-            }
+        if (result.status === "已使用") {
+            stopCouponCheck();
             
             // 顯示兌換成功畫面
-            if (typeof openModal === 'function') {
-                openModal(`
-                    <div style="text-align:center; padding:20px;">
-                        <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
-                        <div style="font-weight: bold; font-size: 20px; margin-bottom: 10px;">兌換成功！</div>
-                        <div style="color: #666; margin-bottom: 20px;">新客招待禮已兌換完成</div>
-                        <div style="font-size: 14px; color: #999;">2 秒後自動返回首頁...</div>
-                    </div>
-                `);
-            }
+            openModal(`
+                <div style="text-align:center; padding:20px;">
+                    <div style="font-size: 48px; margin-bottom: 15px;">🎉</div>
+                    <div style="font-weight: bold; font-size: 20px; margin-bottom: 10px;">兌換成功！</div>
+                    <div style="color: #666; margin-bottom: 20px;">新客招待禮已兌換完成</div>
+                    <div style="font-size: 14px; color: #999;">2 秒後自動返回首頁...</div>
+                </div>
+            `);
             
             // 2 秒後關閉 modal 並重新整理首頁
             setTimeout(() => {
-                if (typeof closeModal === 'function') {
-                    closeModal();
-                }
-                // 重新整理會員資料（點數、QR Code、心意寶盒）
-                if (typeof refreshAll === 'function') {
-                    refreshAll();
-                }
-                // 可選：顯示簡短提示（非必要）
-                // if (typeof showToast === 'function') {
-                //     showToast("✅ 優惠券已兌換");
-                // }
+                closeModal();
+                // 重新整理會員資料（點數、QR Code）
+                refreshAll();
+                showToast("✅ 優惠券已兌換");
             }, 2000);
             
             return true; // 表示已兌換
