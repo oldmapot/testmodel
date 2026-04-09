@@ -326,6 +326,7 @@ async function onScanSuccess(scannedText) {
             try {
                 const res = await fetch(url);
                 const result = await res.json();
+                console.log("完整回應：", JSON.stringify(result));  // ← 確認有沒有這一行
                 hideLoading();
                 
                 if (result.success) {
@@ -359,6 +360,7 @@ async function onScanSuccess(scannedText) {
             try {
                 const res = await fetch(url);
                 const result = await res.json();
+                console.log("完整回應：", JSON.stringify(result));  // ← 確認有沒有這一行
                 hideLoading();
                 
                 if (result.success) {
